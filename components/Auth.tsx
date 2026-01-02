@@ -22,8 +22,8 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
   useEffect(() => {
     const savedEmail = localStorage.getItem('remembered_email');
     const savedPassword = localStorage.getItem('remembered_password');
-    if (savedEmail) setEmail(savedEmail);
-    if (savedPassword) setPassword(savedPassword);
+    if (savedEmail) setEmail(savedEmail || '');
+    if (savedPassword) setPassword(savedPassword || '');
   }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -89,8 +89,8 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-500 rounded-2xl mb-4 shadow-lg shadow-orange-200">
             <Utensils className="text-white" size={32} />
           </div>
-          <h2 className="text-2xl font-black text-gray-900">{'نوش جان'}</h2>
-          <p className="text-xs text-gray-400 mt-1 font-bold italic">{'ورود به پنل کاربری'}</p>
+          <h2 className="text-2xl font-black text-gray-900">{"نوش جان"}</h2>
+          <p className="text-xs text-gray-400 mt-1 font-bold italic">{"ورود به پنل کاربری"}</p>
         </div>
 
         {error && (
@@ -101,7 +101,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             </div>
             {error.includes('API key') && (
               <div className="mt-3 p-2 bg-white rounded-lg border border-red-200 text-[9px] font-bold text-gray-500">
-                {'راهنما: در پنل سوپابیس بخش Settings و API کلید anon را کپی کنید.'}
+                {"راهنما: در پنل سوپابیس بخش Settings و API کلید anon را کپی کنید."}
               </div>
             )}
           </div>
@@ -117,30 +117,30 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
         <form className="space-y-4" onSubmit={handleAuth}>
           <div className="space-y-3">
             {isSignUp && (
-              <>
+              <React.Fragment>
                 <div className="relative group">
                   <UserIcon className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input
                     type="text"
                     required
                     className="w-full pr-12 pl-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm font-bold"
-                    placeholder="نام نمایشی"
+                    placeholder={"نام نمایشی"}
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                   />
                 </div>
                 <div className="relative group">
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-black text-sm">{'@'}</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-black text-sm">{"@"}</span>
                   <input
                     type="text"
                     required
                     className="w-full pr-12 pl-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm font-bold"
-                    placeholder="نام کاربری انگلیسی"
+                    placeholder={"نام کاربری انگلیسی"}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                   />
                 </div>
-              </>
+              </React.Fragment>
             )}
 
             <div className="relative group">
@@ -149,7 +149,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
                 type="email"
                 required
                 className="w-full pr-12 pl-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm font-bold text-left"
-                placeholder="ایمیل"
+                placeholder={"ایمیل"}
                 dir="ltr"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -162,7 +162,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
                 type={showPassword ? "text" : "password"}
                 required
                 className="w-full pr-12 pl-12 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm font-bold text-left"
-                placeholder="رمز عبور"
+                placeholder={"رمز عبور"}
                 dir="ltr"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -182,7 +182,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             disabled={loading}
             className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex justify-center items-center gap-2"
           >
-            {loading ? <RefreshCw className="animate-spin" size={20} /> : (isSignUp ? 'ایجاد حساب کاربری' : 'ورود به حساب')}
+            {loading ? <RefreshCw className="animate-spin" size={20} /> : (isSignUp ? "ایجاد حساب کاربری" : "ورود به حساب")}
           </button>
         </form>
 
@@ -194,7 +194,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             }}
             className="text-xs font-bold text-gray-400 hover:text-orange-500 transition-all"
           >
-            {isSignUp ? 'حساب دارید؟ وارد شوید' : 'حساب ندارید؟ ثبت‌نام کنید'}
+            {isSignUp ? "حساب دارید؟ وارد شوید" : "حساب ندارید؟ ثبت‌نام کنید"}
           </button>
         </div>
       </div>

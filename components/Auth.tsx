@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Utensils, Mail, Lock, User as UserIcon, CheckCircle2, AlertCircle, RefreshCw, Eye, EyeOff, Settings } from 'lucide-react';
+import { Utensils, Mail, Lock, User as UserIcon, CheckCircle2, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 interface AuthProps {
   onAuthSuccess: () => void;
@@ -68,12 +68,10 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
         onAuthSuccess();
       }
     } catch (err: any) {
-      console.error('Auth Error Detail:', err);
-      
       if (err.message?.includes('Invalid API key') || err.status === 401) {
-        setError('⚠️ خطای کلید امنیتی (API Key): کلید پروژه شما در پنل Supabase تغییر کرده است. لطفاً فایل lib/supabase.ts را با کلید جدید به‌روزرسانی کنید.');
+        setError('خطای کلید امنیتی (API Key): کلید پروژه در پنل تغییر کرده است.');
       } else if (err.message.includes('Email not confirmed')) {
-        setError('ایمیل تایید نشده است. لطفاً از پنل مدیریت ایمیل را تایید کنید یا دوباره ثبت‌نام کنید.');
+        setError('ایمیل تایید نشده است. لطفاً ایمیل خود را چک کنید.');
       } else if (err.message.includes('Invalid login credentials')) {
         setError('ایمیل یا رمز عبور اشتباه است.');
       } else {
@@ -91,8 +89,8 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-500 rounded-2xl mb-4 shadow-lg shadow-orange-200">
             <Utensils className="text-white" size={32} />
           </div>
-          <h2 className="text-2xl font-black text-gray-900">نوش جان</h2>
-          <p className="text-xs text-gray-400 mt-1 font-bold italic">ورود به پنل کاربری</p>
+          <h2 className="text-2xl font-black text-gray-900">{'نوش جان'}</h2>
+          <p className="text-xs text-gray-400 mt-1 font-bold italic">{'ورود به پنل کاربری'}</p>
         </div>
 
         {error && (
@@ -103,7 +101,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             </div>
             {error.includes('API key') && (
               <div className="mt-3 p-2 bg-white rounded-lg border border-red-200 text-[9px] font-bold text-gray-500">
-                {'راهنما: به Project Settings > API بروید و کلید anon را کپی کنید.'}
+                {'راهنما: در پنل سوپابیس بخش Settings و API کلید anon را کپی کنید.'}
               </div>
             )}
           </div>
@@ -132,7 +130,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
                   />
                 </div>
                 <div className="relative group">
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-black text-sm">@</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-black text-sm">{'@'}</span>
                   <input
                     type="text"
                     required

@@ -103,7 +103,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             </div>
             {error.includes('API key') && (
               <div className="mt-3 p-2 bg-white rounded-lg border border-red-200 text-[9px] font-bold text-gray-500">
-                راهنما: به Project Settings &gt; API بروید و کلید anon را کپی کنید.
+                {'راهنما: به Project Settings > API بروید و کلید anon را کپی کنید.'}
               </div>
             )}
           </div>

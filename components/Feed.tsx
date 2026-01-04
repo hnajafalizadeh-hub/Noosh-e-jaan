@@ -1,17 +1,22 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Post, Restaurant, Profile } from '../types';
+import { Post, Restaurant, MenuItem } from '../types';
 import { 
   Star, MapPin, MessageCircle, Heart, ThumbsDown, 
   Utensils, DollarSign, Car, Sparkles, ChevronDown, 
-  Search, X, Loader2, Store, ChefHat, Sparkle, AlertCircle
+  Search, X, Loader2, Store, ChefHat, Sparkle, AlertCircle, UtensilsCrossed
 } from 'lucide-react';
 
 interface FeedProps {
   onRestaurantClick?: (id: string) => void;
   onPostClick?: (id: string) => void;
   onUserClick?: (userId: string) => void;
+}
+
+interface GlobalSearchResults {
+  restaurants: Restaurant[];
+  menuItems: (MenuItem & { restaurants: Restaurant })[];
 }
 
 const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick }) => {
@@ -22,7 +27,12 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
   const [showRatings, setShowRatings] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   
+  // Search States
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchingGlobal, setIsSearchingGlobal] = useState(false);
+  const [globalResults, setGlobalResults] = useState<GlobalSearchResults>({ restaurants: [], menuItems: [] });
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -30,7 +40,47 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
       setCurrentUserId(uId);
       fetchSmartFeed(uId);
     });
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      if (searchQuery.trim().length > 1) {
+        handleGlobalSearch(searchQuery.trim());
+      } else {
+        setGlobalResults({ restaurants: [], menuItems: [] });
+        setShowDropdown(false);
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
+
+  const handleGlobalSearch = async (query: string) => {
+    setIsSearchingGlobal(true);
+    setShowDropdown(true);
+    try {
+      const [restRes, menuRes] = await Promise.all([
+        supabase.from('restaurants').select('*').ilike('name', `%${query}%`).limit(5),
+        supabase.from('menu_items').select('*, restaurants(*)').ilike('name', `%${query}%`).limit(5)
+      ]);
+
+      setGlobalResults({
+        restaurants: restRes.data || [],
+        menuItems: (menuRes.data as any) || []
+      });
+    } catch (e) {
+      console.error("Global Search Error:", e);
+    } finally {
+      setIsSearchingGlobal(false);
+    }
+  };
 
   const fetchSmartFeed = async (uId: string | null) => {
     setLoading(true);
@@ -42,7 +92,6 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
         followingIds = followData?.map(f => f.following_id) || [];
       }
 
-      // کوئری را به بخش‌های کوچکتر تقسیم می‌کنیم تا اگر لایک یا کامنت نبود، کل فید کرش نکند
       const { data: allPosts, error: postError } = await supabase
         .from('posts')
         .select(`
@@ -57,7 +106,7 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
 
       if (postError) {
         if (postError.code === 'PGRST204' || postError.message.includes('not found')) {
-           setError('جداول دیتابیس (مانند likes یا comments) یافت نشدند. لطفاً اسکریپت SQL را اجرا کنید.');
+           setError('جداول دیتابیس یافت نشدند. لطفاً اسکریپت SQL را اجرا کنید.');
         } else {
            setError('خطا در بارگذاری فید: ' + postError.message);
         }
@@ -65,7 +114,8 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
       }
 
       if (allPosts) {
-        const fPosts = allPosts.filter(p => followingIds.includes(p.user_id));
+        // تغییر مهم: پست‌های خود کاربر (uId) هم در لیست followingPosts نمایش داده می‌شود
+        const fPosts = allPosts.filter(p => followingIds.includes(p.user_id) || p.user_id === uId);
         const dPosts = allPosts.filter(p => !followingIds.includes(p.user_id) && p.user_id !== uId);
         setFollowingPosts(fPosts);
         setDiscoverPosts(dPosts);
@@ -90,7 +140,7 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
       }
       fetchSmartFeed(currentUserId);
     } catch (e) {
-      alert('خطا در ثبت واکنش. دیتابیس را چک کنید.');
+      alert('خطا در ثبت واکنش.');
     }
   };
 
@@ -105,7 +155,7 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
             {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="text-orange-600 font-black text-sm">{post.profiles?.username[0].toUpperCase()}</span>}
           </div>
           <div className="flex-1 text-right">
-            <h4 className="font-black text-[13px] text-gray-900 leading-none mb-1 cursor-pointer hover:text-orange-500" onClick={() => onUserClick?.(post.profiles?.id || '')}>{post.profiles?.full_name}</h4>
+            <h4 className="font-black text-[13px] text-gray-900 leading-none mb-1 cursor-pointer hover:text-orange-500" onClick={() => onUserClick?.(post.profiles?.id || '')}>{post.profiles?.full_name} {post.profiles?.id === currentUserId && <span className="text-[9px] bg-gray-100 px-1.5 py-0.5 rounded-md mr-1">(شما)</span>}</h4>
             <div className="flex items-center gap-1 cursor-pointer" onClick={() => post.restaurants?.id && onRestaurantClick?.(post.restaurants.id)}>
                 <MapPin size={10} className="text-gray-300" />
                 <span className="text-[10px] text-orange-600 font-bold hover:underline">{post.restaurants?.name}، {post.restaurants?.city}</span>
@@ -160,18 +210,10 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-orange-500" /></div>;
 
-  if (error) return (
-    <div className="p-8 text-center space-y-4">
-      <AlertCircle size={48} className="mx-auto text-red-500" />
-      <h3 className="font-black text-gray-900">خطا در ارتباط با دیتابیس</h3>
-      <p className="text-xs font-bold text-gray-400 leading-relaxed">{error}</p>
-      <button onClick={() => fetchSmartFeed(currentUserId)} className="px-6 py-2 bg-gray-900 text-white rounded-xl font-black text-[10px]">تلاش مجدد</button>
-    </div>
-  );
-
   return (
     <div className="space-y-6 pt-4 relative">
-      <div className="px-4 sticky top-0 z-20 bg-gray-50/80 backdrop-blur-md py-2 -mt-4 border-b border-gray-100">
+      {/* Global Search Bar */}
+      <div className="px-4 sticky top-0 z-30 bg-gray-50/80 backdrop-blur-md py-2 -mt-4 border-b border-gray-100" ref={searchRef}>
         <div className="relative">
           <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" />
           <input 
@@ -180,21 +222,98 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
             placeholder="جستجوی غذا یا رستوران..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => searchQuery.trim().length > 1 && setShowDropdown(true)}
           />
+          {isSearchingGlobal && (
+            <div className="absolute left-12 top-1/2 -translate-y-1/2">
+               <Loader2 size={16} className="animate-spin text-orange-500" />
+            </div>
+          )}
+          {searchQuery && (
+            <button 
+              onClick={() => { setSearchQuery(''); setGlobalResults({ restaurants: [], menuItems: [] }); setShowDropdown(false); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
+
+        {/* Search Results Dropdown */}
+        {showDropdown && (searchQuery.trim().length > 1) && (
+          <div className="absolute top-full left-4 right-4 bg-white mt-2 rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-in slide-in-from-top-2 duration-200">
+            {globalResults.restaurants.length === 0 && globalResults.menuItems.length === 0 && !isSearchingGlobal ? (
+              <div className="p-8 text-center">
+                 <p className="text-xs font-bold text-gray-400">نتیجه‌ای یافت نشد.</p>
+              </div>
+            ) : (
+              <div className="max-h-[400px] overflow-y-auto pb-4">
+                {globalResults.restaurants.length > 0 && (
+                  <div className="p-2">
+                    <div className="px-3 py-2 flex items-center gap-2 text-gray-400">
+                      <Store size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">رستوران‌ها</span>
+                    </div>
+                    {globalResults.restaurants.map(r => (
+                      <button 
+                        key={r.id} 
+                        onClick={() => { onRestaurantClick?.(r.id); setShowDropdown(false); setSearchQuery(''); }}
+                        className="w-full p-3 flex items-center gap-3 hover:bg-orange-50 transition-colors text-right rounded-2xl group"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 font-black shrink-0 overflow-hidden">
+                           {r.cover_image ? <img src={r.cover_image} className="w-full h-full object-cover" /> : r.name[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                           <p className="text-xs font-black text-gray-900 group-hover:text-orange-600 transition-colors">{r.name}</p>
+                           <p className="text-[10px] font-bold text-gray-400">{r.city}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {globalResults.menuItems.length > 0 && (
+                  <div className="p-2 border-t border-gray-50">
+                    <div className="px-3 py-2 flex items-center gap-2 text-gray-400">
+                      <UtensilsCrossed size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">غذاها</span>
+                    </div>
+                    {globalResults.menuItems.map(m => (
+                      <button 
+                        key={m.id} 
+                        onClick={() => { onRestaurantClick?.(m.restaurant_id); setShowDropdown(false); setSearchQuery(''); }}
+                        className="w-full p-3 flex items-center gap-3 hover:bg-orange-50 transition-colors text-right rounded-2xl group"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 font-black shrink-0">
+                           <ChefHat size={20} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                           <p className="text-xs font-black text-gray-900 group-hover:text-orange-600 transition-colors">{m.name}</p>
+                           <p className="text-[10px] font-bold text-gray-400">در {m.restaurants?.name || 'رستوران'}</p>
+                        </div>
+                        <div className="text-left">
+                           <p className="text-[10px] font-black text-orange-600">{m.price.toLocaleString()} تومان</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {followingPosts.length > 0 && (
-        <section className="space-y-4">
-           <div className="px-6 flex items-center gap-2">
-              <Sparkle size={16} className="text-orange-500 fill-current" />
-              <h3 className="text-sm font-black text-gray-900">تجربه‌های دوستان</h3>
-           </div>
-           <div className="space-y-6">
-              {followingPosts.map(p => <PostCard key={p.id} post={p} />)}
-           </div>
-        </section>
-      )}
+      <section className="space-y-4">
+         <div className="px-6 flex items-center gap-2">
+            <Sparkle size={16} className="text-orange-500 fill-current" />
+            <h3 className="text-sm font-black text-gray-900">تایم‌لاین شما و دوستان</h3>
+         </div>
+         <div className="space-y-6">
+            {followingPosts.map(p => <PostCard key={p.id} post={p} />)}
+            {followingPosts.length === 0 && <div className="text-center py-10 text-xs font-bold text-gray-400 italic">هنوز پستی در تایم‌لاین شما وجود ندارد.</div>}
+         </div>
+      </section>
 
       <section className="space-y-4">
          <div className="px-6 flex items-center gap-2">

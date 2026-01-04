@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Restaurant } from '../types';
-import { MapPin, Navigation, Star, Search, RefreshCw, Phone, ShieldCheck, Map, AlertCircle, Loader2 } from 'lucide-react';
+import { MapPin, Navigation, Star, Search, RefreshCw, Phone, ShieldCheck, Map, AlertCircle, Loader2, Crosshair } from 'lucide-react';
 
 interface Props {
   onRestaurantClick?: (id: string) => void;
@@ -33,10 +33,12 @@ const NearMe: React.FC<Props> = ({ onRestaurantClick }) => {
         fetchNearby(loc);
       },
       (err) => {
-        setError("دسترسی به موقعیت مکانی داده نشد. لطفاً GPS گوشی خود را روشن کنید.");
+        let msg = "دسترسی به لوکیشن داده نشد. لطفاً GPS گوشی خود را روشن کنید.";
+        if (err.code === 1) msg = "لطفاً اجازه دسترسی به لوکیشن را در مرورگر خود تایید کنید.";
+        setError(msg);
         fetchNearby(null);
       },
-      { enableHighAccuracy: true, timeout: 5000 }
+      { enableHighAccuracy: true, timeout: 8000 }
     );
   };
 
@@ -62,13 +64,21 @@ const NearMe: React.FC<Props> = ({ onRestaurantClick }) => {
         });
       }
       setRestaurants(list);
+    } catch (e) {
+      console.error(e);
     } finally { setLoading(false); }
   };
 
   if (loading) return (
-    <div className="flex flex-col items-center justify-center py-20 gap-4">
-      <Loader2 className="animate-spin text-orange-500" size={40} />
-      <p className="text-xs font-bold text-gray-400">درحال جستجوی خوشمزه‌های اطراف شما...</p>
+    <div className="flex flex-col items-center justify-center py-20 gap-6 animate-in fade-in">
+      <div className="relative">
+         <Loader2 className="animate-spin text-orange-500" size={56} />
+         <Crosshair className="absolute inset-0 m-auto text-orange-200" size={24} />
+      </div>
+      <div className="text-center space-y-2">
+        <p className="text-sm font-black text-gray-900">در حال دریافت لوکیشن...</p>
+        <p className="text-[10px] font-bold text-gray-400">لطفاً اگر پیامی روی صفحه ظاهر شد، روی Allow کلیک کنید.</p>
+      </div>
     </div>
   );
 
@@ -79,15 +89,18 @@ const NearMe: React.FC<Props> = ({ onRestaurantClick }) => {
           <h2 className="text-2xl font-black text-gray-900">اطراف من</h2>
           <p className="text-[10px] font-bold text-gray-400 mt-0.5">بر اساس نزدیک‌ترین فاصله به شما</p>
         </div>
-        <button onClick={getLocation} className="p-3 bg-white text-orange-500 rounded-2xl shadow-sm border border-gray-100 active:rotate-180 transition-all duration-500">
-          <RefreshCw size={20} />
+        <button onClick={getLocation} className="p-3 bg-white text-orange-500 rounded-2xl shadow-sm border border-gray-100 active:scale-90 transition-all">
+          <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
 
       {error && (
-        <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex items-center gap-3 animate-in shake duration-500">
-           <AlertCircle size={20} className="text-orange-500 shrink-0" />
-           <p className="text-[11px] font-bold text-orange-800 leading-relaxed">{error}</p>
+        <div className="bg-orange-50 p-5 rounded-[2rem] border border-orange-100 flex items-start gap-3 animate-in shake duration-500">
+           <AlertCircle size={20} className="text-orange-500 shrink-0 mt-0.5" />
+           <div className="space-y-2">
+              <p className="text-[11px] font-bold text-orange-800 leading-relaxed">{error}</p>
+              <button onClick={getLocation} className="text-[10px] font-black text-orange-600 bg-white px-4 py-1.5 rounded-full border border-orange-100">تلاش مجدد</button>
+           </div>
         </div>
       )}
 
@@ -125,7 +138,7 @@ const NearMe: React.FC<Props> = ({ onRestaurantClick }) => {
                 {res.lat && res.lng && (
                    <div className="flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-full text-[9px] font-black text-blue-600 border border-blue-100">
                       <Map size={10} />
-                      <span>دارای مکان دقیق</span>
+                      <span>روی نقشه</span>
                    </div>
                 )}
               </div>

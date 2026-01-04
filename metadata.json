@@ -1,8 +1,7 @@
-
 {
-  "name": "نوش جان",
-  "short_name": "نوش جان",
-  "description": "پلتفرم اشتراک‌گذاری تجربه غذا در ایران",
+  "name": " new2  چی بقولم؟ ",
+  "short_name": "چی بقولم؟",
+  "description": "اولین شبکه اجتماعی تخصصی برای شکموهای ایران؛ راهنمای نهایی برای پاسخ به سوال «حالا چی بخوریم؟»",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#f9fafb",

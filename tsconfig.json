@@ -17,6 +17,6 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["."],
-  "exclude": ["node_modules"]
+  "include": ["App.tsx", "index.tsx", "types.ts", "lib/**/*", "components/**/*"],
+  "exclude": ["node_modules", "Noosh-e-jan"]
 }

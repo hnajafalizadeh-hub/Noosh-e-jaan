@@ -3,7 +3,11 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Post, Activity } from '../types';
 import { compressImage } from '../lib/imageUtils';
-import { Settings, Grid, Camera, Image as ImageIcon, Loader2, Bell, Heart, MessageCircle, User, Search, UserPlus, UserMinus, ArrowRight, UserCheck, ShieldAlert } from 'lucide-react';
+import { 
+  Settings, Grid, Camera, Image as ImageIcon, Loader2, Bell, Heart, 
+  MessageCircle, User, Search, UserPlus, UserMinus, ArrowRight, 
+  UserCheck, ShieldAlert, Moon, Sun, X, ChevronLeft, LogOut
+} from 'lucide-react';
 
 interface ProfileViewProps {
   profile?: Profile;
@@ -14,15 +18,29 @@ interface ProfileViewProps {
   onMarkAsRead?: () => void;
   onBack?: () => void;
   onOpenAdmin?: () => void;
+  isDarkMode?: boolean;
+  onToggleDarkMode?: () => void;
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ profile: initialProfile, userId, onPostClick, onUserClick, hasUnread, onMarkAsRead, onBack, onOpenAdmin }) => {
+const ProfileView: React.FC<ProfileViewProps> = ({ 
+  profile: initialProfile, 
+  userId, 
+  onPostClick, 
+  onUserClick, 
+  hasUnread, 
+  onMarkAsRead, 
+  onBack, 
+  onOpenAdmin,
+  isDarkMode,
+  onToggleDarkMode
+}) => {
   const [profile, setProfile] = useState<Profile | null>(initialProfile || null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [activeTab, setActiveTab] = useState<'posts' | 'activities'>('posts');
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -148,29 +166,29 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile: initialProfile, user
   const isOwnProfile = currentUserId === profile.id;
 
   return (
-    <div className="bg-gray-50 min-h-full pb-20" dir="rtl">
+    <div className="bg-gray-50 dark:bg-dark-bg min-h-full pb-20 transition-colors duration-300" dir="rtl">
       {/* Cover */}
-      <div className="h-48 w-full bg-orange-100 relative group">
+      <div className="h-48 w-full bg-orange-100 dark:bg-dark-card relative group">
         {onBack && (
           <button onClick={onBack} className="absolute top-4 right-4 z-20 p-2 bg-black/30 backdrop-blur-md rounded-full text-white">
             <ArrowRight size={20} />
           </button>
         )}
-        {profile.cover_url ? <img src={profile.cover_url} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-orange-50/50" />}
+        {profile.cover_url ? <img src={profile.cover_url} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-orange-50/50 dark:bg-black/20" />}
         {isOwnProfile && (
           <label className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
              <ImageIcon className="text-white" size={28} />
              <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], 'cover')} />
           </label>
         )}
-        {updating && <div className="absolute inset-0 bg-white/40 flex items-center justify-center"><Loader2 className="animate-spin text-orange-500" /></div>}
+        {updating && <div className="absolute inset-0 bg-white/40 dark:bg-black/40 flex items-center justify-center"><Loader2 className="animate-spin text-orange-500" /></div>}
       </div>
 
-      {/* Info */}
+      {/* Info Section */}
       <div className="px-6 -mt-12 relative z-10">
         <div className="flex items-end justify-between">
-          <div className="w-24 h-24 rounded-[2rem] bg-white p-1 shadow-xl relative group">
-            <div className="w-full h-full rounded-[1.8rem] bg-orange-50 flex items-center justify-center overflow-hidden border-2 border-white">
+          <div className="w-24 h-24 rounded-[2rem] bg-white dark:bg-dark-card p-1 shadow-xl relative group">
+            <div className="w-full h-full rounded-[1.8rem] bg-orange-50 dark:bg-dark-bg flex items-center justify-center overflow-hidden border-2 border-white dark:border-dark-border">
               {profile.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" /> : <span className="text-3xl font-black text-orange-500">{profile.username?.[0].toUpperCase()}</span>}
             </div>
             {isOwnProfile && (
@@ -192,35 +210,42 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile: initialProfile, user
             {!isOwnProfile && (
               <button 
                 onClick={handleFollow}
-                className={`px-6 py-2.5 rounded-xl font-black text-xs shadow-lg transition-all flex items-center gap-2 ${isFollowing ? 'bg-gray-100 text-gray-500' : 'bg-orange-500 text-white shadow-orange-100'}`}
+                className={`px-6 py-2.5 rounded-xl font-black text-xs shadow-lg transition-all flex items-center gap-2 ${isFollowing ? 'bg-gray-100 dark:bg-dark-border text-gray-500 dark:text-gray-400' : 'bg-orange-500 text-white shadow-orange-100'}`}
               >
                 {isFollowing ? <><UserMinus size={16} /> لغو دنبال کردن</> : <><UserPlus size={16} /> دنبال کردن</>}
               </button>
             )}
-            {isOwnProfile && <button className="p-2.5 bg-white rounded-xl shadow-md text-gray-400 border border-gray-100 hover:text-orange-500 transition-colors"><Settings size={18} /></button>}
+            {isOwnProfile && (
+              <button 
+                onClick={() => setShowSettings(true)}
+                className="p-2.5 bg-white dark:bg-dark-card rounded-xl shadow-md text-gray-400 dark:text-gray-300 border border-gray-100 dark:border-dark-border hover:text-orange-500 transition-colors"
+              >
+                <Settings size={18} />
+              </button>
+            )}
           </div>
         </div>
 
         <div className="mt-4 flex items-center gap-2">
           <div>
-            <h2 className="text-xl font-black text-gray-900">{profile.full_name}</h2>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white">{profile.full_name}</h2>
             <p className="text-orange-600 font-bold text-xs">@{profile.username}</p>
           </div>
-          {profile.is_admin && <span className="px-2 py-0.5 bg-red-50 text-red-600 text-[8px] font-black rounded-lg border border-red-100">مدیریت</span>}
+          {profile.is_admin && <span className="px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-[8px] font-black rounded-lg border border-red-100 dark:border-red-500/20">مدیریت</span>}
         </div>
 
-        <div className="flex gap-4 mt-6 bg-white p-4 rounded-3xl shadow-sm border border-gray-100 text-center">
+        <div className="flex gap-4 mt-6 bg-white dark:bg-dark-card p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-dark-border text-center transition-colors">
           <div className="flex-1">
-            <p className="text-lg font-black text-gray-900">{posts.length}</p>
-            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">تجربه</p>
+            <p className="text-lg font-black text-gray-900 dark:text-white">{posts.length}</p>
+            <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">تجربه</p>
           </div>
           <div className="flex-1">
-            <p className="text-lg font-black text-gray-900">{followerCount}</p>
-            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">دنبال‌کننده</p>
+            <p className="text-lg font-black text-gray-900 dark:text-white">{followerCount}</p>
+            <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">دنبال‌کننده</p>
           </div>
           <div className="flex-1">
-            <p className="text-lg font-black text-gray-900">{followingCount}</p>
-            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">دنبال‌شونده</p>
+            <p className="text-lg font-black text-gray-900 dark:text-white">{followingCount}</p>
+            <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">دنبال‌شونده</p>
           </div>
         </div>
       </div>
@@ -232,7 +257,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile: initialProfile, user
               <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input 
                 type="text" 
-                className="w-full bg-white border border-gray-100 rounded-2xl py-3 pr-11 pl-4 text-xs font-bold shadow-sm outline-none focus:ring-2 focus:ring-orange-500/20"
+                className="w-full bg-white dark:bg-dark-card border border-gray-100 dark:border-dark-border rounded-2xl py-3 pr-11 pl-4 text-xs font-bold shadow-sm outline-none focus:ring-2 focus:ring-orange-500/20 dark:text-white transition-colors"
                 placeholder="جستجوی کاربران..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -241,19 +266,19 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile: initialProfile, user
            </div>
 
            {searchResults.length > 0 && (
-             <div className="mt-2 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden animate-in slide-in-from-top-2">
+             <div className="mt-2 bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-dark-border shadow-xl overflow-hidden animate-in slide-in-from-top-2">
                 {searchResults.map(res => (
                   <button 
                     key={res.id} 
                     onClick={() => { onUserClick?.(res.id); setSearchQuery(''); }}
-                    className="w-full p-3 flex items-center gap-3 hover:bg-orange-50 transition-colors border-b border-gray-50 last:border-0 text-right"
+                    className="w-full p-3 flex items-center gap-3 hover:bg-orange-50 dark:hover:bg-dark-bg transition-colors border-b border-gray-50 dark:border-dark-border last:border-0 text-right"
                   >
-                     <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center overflow-hidden shrink-0">
+                     <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-dark-bg flex items-center justify-center overflow-hidden shrink-0">
                         {res.avatar_url ? <img src={res.avatar_url} className="w-full h-full object-cover" /> : <User size={14} className="text-orange-500" />}
                      </div>
                      <div className="flex-1">
-                        <p className="text-[11px] font-black text-gray-900">{res.full_name}</p>
-                        <p className="text-[9px] font-bold text-gray-400">@{res.username}</p>
+                        <p className="text-[11px] font-black text-gray-900 dark:text-white">{res.full_name}</p>
+                        <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500">@{res.username}</p>
                      </div>
                   </button>
                 ))}
@@ -263,12 +288,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile: initialProfile, user
       )}
 
       {/* Tabs */}
-      <div className="px-6 mt-8 flex gap-6 border-b border-gray-100">
-        <button onClick={() => setActiveTab('posts')} className={`pb-3 text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'posts' ? 'border-b-2 border-orange-500 text-orange-600' : 'text-gray-300'}`}>
+      <div className="px-6 mt-8 flex gap-6 border-b border-gray-100 dark:border-dark-border">
+        <button onClick={() => setActiveTab('posts')} className={`pb-3 text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'posts' ? 'border-b-2 border-orange-500 text-orange-600' : 'text-gray-300 dark:text-gray-600'}`}>
           <Grid size={14} /> پست‌ها
         </button>
         {isOwnProfile && (
-          <button onClick={() => { setActiveTab('activities'); onMarkAsRead?.(); }} className={`pb-3 text-xs font-black transition-all relative flex items-center gap-2 ${activeTab === 'activities' ? 'border-b-2 border-orange-500 text-orange-600' : 'text-gray-300'}`}>
+          <button onClick={() => { setActiveTab('activities'); onMarkAsRead?.(); }} className={`pb-3 text-xs font-black transition-all relative flex items-center gap-2 ${activeTab === 'activities' ? 'border-b-2 border-orange-500 text-orange-600' : 'text-gray-300 dark:text-gray-600'}`}>
             <Bell size={14} /> اعلان‌ها
             {hasUnread && (
               <span className="absolute -top-1 -right-2 w-2 h-2 bg-red-600 rounded-full animate-ping"></span>
@@ -281,32 +306,32 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile: initialProfile, user
         {activeTab === 'posts' ? (
           <div className="grid grid-cols-3 gap-2">
             {posts.map(p => (
-              <div key={p.id} onClick={() => onPostClick?.(p.id)} className="aspect-square rounded-xl overflow-hidden shadow-sm bg-white border border-gray-100 cursor-pointer group relative">
+              <div key={p.id} onClick={() => onPostClick?.(p.id)} className="aspect-square rounded-xl overflow-hidden shadow-sm bg-white dark:bg-dark-card border border-gray-100 dark:border-dark-border cursor-pointer group relative">
                 <img src={p.photo_url} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                    <Heart size={20} className="text-white fill-current" />
                 </div>
               </div>
             ))}
-            {!posts.length && !loading && <div className="col-span-3 py-16 text-center opacity-30 text-xs font-bold italic">هنوز پستی منتشر نشده است.</div>}
+            {!posts.length && !loading && <div className="col-span-3 py-16 text-center opacity-30 text-xs font-bold italic dark:text-gray-500">هنوز پستی منتشر نشده است.</div>}
           </div>
         ) : (
           <div className="space-y-3">
             {activities.map((act) => (
-              <div key={act.id} onClick={() => { if(act.post_id) onPostClick?.(act.post_id); else if(act.type === 'follow') onUserClick?.((act.user as any).id || ''); }} className="bg-white p-3 rounded-2xl border border-gray-100 flex items-center gap-3 shadow-sm cursor-pointer active:scale-95 transition-all text-right">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center overflow-hidden shrink-0">
+              <div key={act.id} onClick={() => { if(act.post_id) onPostClick?.(act.post_id); else if(act.type === 'follow') onUserClick?.((act.user as any).id || ''); }} className="bg-white dark:bg-dark-card p-3 rounded-2xl border border-gray-100 dark:border-dark-border flex items-center gap-3 shadow-sm cursor-pointer active:scale-95 transition-all text-right">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-dark-bg flex items-center justify-center overflow-hidden shrink-0">
                   {act.user.avatar_url ? <img src={act.user.avatar_url} className="w-full h-full object-cover" /> : <User size={20} className="text-orange-500" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-gray-900 leading-tight">
+                  <p className="text-[10px] text-gray-900 dark:text-gray-200 leading-tight">
                     <span className="font-black">@{act.user.username}</span> 
                     {act.type === 'like' && ' پست شما را لایک کرد.'}
                     {act.type === 'comment' && ` گفت: "${act.content?.slice(0, 30)}..."`}
                     {act.type === 'follow' && ' شما را دنبال کرد.'}
                   </p>
-                  <p className="text-[7px] font-bold text-gray-400 mt-1">{new Date(act.created_at).toLocaleDateString('fa-IR')}</p>
+                  <p className="text-[7px] font-bold text-gray-400 dark:text-gray-500 mt-1">{new Date(act.created_at).toLocaleDateString('fa-IR')}</p>
                 </div>
-                <div className={`p-1.5 rounded-lg ${act.type === 'like' ? 'bg-red-50 text-red-500' : act.type === 'follow' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'}`}>
+                <div className={`p-1.5 rounded-lg ${act.type === 'like' ? 'bg-red-50 dark:bg-red-500/10 text-red-500' : act.type === 'follow' ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-500' : 'bg-blue-50 dark:bg-blue-500/10 text-blue-500'}`}>
                   {act.type === 'like' && <Heart size={14} fill="currentColor" />}
                   {act.type === 'comment' && <MessageCircle size={14} />}
                   {act.type === 'follow' && <UserCheck size={14} />}
@@ -317,6 +342,70 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile: initialProfile, user
           </div>
         )}
       </div>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex flex-col justify-end">
+           <div className="bg-white dark:bg-dark-card rounded-t-[3rem] w-full max-w-md mx-auto p-8 space-y-8 animate-in slide-in-from-bottom-full duration-300">
+              <div className="flex justify-between items-center">
+                 <h3 className="font-black text-xl text-gray-900 dark:text-white">تنظیمات پاتوق</h3>
+                 <button onClick={() => setShowSettings(false)} className="p-2 bg-gray-50 dark:bg-dark-bg rounded-2xl text-gray-400 dark:text-gray-300 transition-colors">
+                    <X size={24} />
+                 </button>
+              </div>
+
+              <div className="space-y-4">
+                 <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mr-2">ظاهر اپلیکیشن</p>
+                 
+                 {/* Dark Mode Toggle Switch */}
+                 <div 
+                    onClick={onToggleDarkMode}
+                    className="flex items-center justify-between p-5 bg-gray-50 dark:bg-dark-bg rounded-3xl border border-gray-100 dark:border-dark-border cursor-pointer transition-all active:scale-95"
+                 >
+                    <div className="flex items-center gap-4">
+                       <div className={`p-3 rounded-2xl ${isDarkMode ? 'bg-orange-500 text-white' : 'bg-white dark:bg-dark-card text-orange-500 shadow-sm'}`}>
+                          {isDarkMode ? <Moon size={22} /> : <Sun size={22} />}
+                       </div>
+                       <div>
+                          <p className="text-sm font-black text-gray-900 dark:text-white">حالت شب (Dark Mode)</p>
+                          <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500">تمامی بخش‌ها تیره می‌شوند</p>
+                       </div>
+                    </div>
+                    {/* Switch Visual */}
+                    <div className={`w-12 h-6 rounded-full relative transition-colors ${isDarkMode ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-800'}`}>
+                       <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all ${isDarkMode ? 'left-1' : 'left-7'}`}></div>
+                    </div>
+                 </div>
+
+                 {/* Other Placeholder Settings */}
+                 <div className="p-5 bg-gray-50 dark:bg-dark-bg rounded-3xl border border-gray-100 dark:border-dark-border flex items-center justify-between opacity-50 cursor-not-allowed">
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 bg-white dark:bg-dark-card rounded-2xl text-blue-500 shadow-sm">
+                          <ImageIcon size={22} />
+                       </div>
+                       <div>
+                          <p className="text-sm font-black text-gray-900 dark:text-white">کیفیت تصاویر</p>
+                          <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500">بهینه‌سازی مصرف اینترنت</p>
+                       </div>
+                    </div>
+                    <ChevronLeft size={20} className="text-gray-300" />
+                 </div>
+
+                 <button 
+                  onClick={() => { supabase.auth.signOut(); setShowSettings(false); }}
+                  className="w-full flex items-center gap-4 p-5 bg-red-50 dark:bg-red-500/10 rounded-3xl text-red-600 transition-all active:scale-95"
+                 >
+                    <div className="p-3 bg-white dark:bg-dark-card rounded-2xl shadow-sm"><LogOut size={22}/></div>
+                    <span className="text-sm font-black">خروج از حساب کاربری</span>
+                 </button>
+              </div>
+
+              <div className="text-center pb-4">
+                 <p className="text-[10px] font-bold text-gray-300 dark:text-gray-600">نسخه ۱.۴.۰ - چی بقولم؟</p>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };

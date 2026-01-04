@@ -9,16 +9,35 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="نوش جان">
-    <meta name="theme-color" content="#f9fafb">
+    <meta name="apple-mobile-web-app-title" content="چی بقولم؟">
+    <meta name="theme-color" content="#f97316">
     
-    <title>نوش جان - تجربه غذا</title>
+    <title>چی بقولم؟ - پاتوق شکموهای حرفه‌ای</title>
     
     <!-- Favicon and Icons -->
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/lucide-react/lucide/main/icons/utensils.svg">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/lucide-react/lucide/main/icons/utensils.svg">
     
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#121212',
+                            card: '#1e1e1e',
+                            border: '#2a2a2a'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;400;700;900&display=swap');
         
@@ -32,11 +51,22 @@
             -webkit-touch-callout: none;
             user-select: none;
         }
+        
+        /* Dark mode transition */
+        html.dark body {
+            background-color: #121212;
+        }
+
         ::-webkit-scrollbar {
             display: none;
         }
         .safe-top { padding-top: env(safe-area-inset-top); }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+        .leaflet-container {
+            font-family: 'Vazirmatn', sans-serif !important;
+            z-index: 1;
+        }
     </style>
 <script type="importmap">
 {
@@ -51,6 +81,8 @@
   }
 }
 </script>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <link rel="stylesheet" href="/index.css">
 </head>
 <body class="safe-top safe-bottom">

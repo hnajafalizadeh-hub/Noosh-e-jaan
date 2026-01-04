@@ -6,6 +6,8 @@ export interface Profile {
   avatar_url?: string;
   cover_url?: string;
   is_admin?: boolean;
+  phone?: string;
+  email?: string;
 }
 
 export interface Restaurant {
@@ -23,16 +25,24 @@ export interface Restaurant {
   logo_url?: string;
   verification_code?: string;
   is_active?: boolean;
+  working_hours?: string; 
+  national_id_url?: string;
+  business_license_url?: string;
+  verification_status?: 'pending' | 'submitted' | 'approved' | 'rejected';
 }
 
-export type MenuCategory = 'main' | 'appetizer' | 'drink' | 'dessert' | 'other';
+export interface MenuCategoryDef {
+  key: string;
+  title_fa: string;
+  icon_name: string;
+}
 
 export interface MenuItem {
   id: string;
   restaurant_id: string;
   name: string;
   price: number;
-  category: MenuCategory;
+  category_key: string;
   description?: string;
   image_url?: string;
   created_at: string;
@@ -76,11 +86,7 @@ export interface Post {
 export interface Activity {
   id: string;
   type: 'like' | 'comment' | 'follow';
-  user: {
-    username: string;
-    full_name: string;
-    avatar_url?: string;
-  };
+  user: Profile;
   post_id?: string;
   content?: string;
   created_at: string;

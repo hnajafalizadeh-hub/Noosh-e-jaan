@@ -42,6 +42,7 @@ export interface MenuItem {
   restaurant_id: string;
   name: string;
   price: number;
+  discount_price?: number;
   category_key: string;
   description?: string;
   image_url?: string;

@@ -8,10 +8,10 @@ import {
   Info, DollarSign, AlertCircle, ShieldCheck, 
   CheckCircle2, Camera, Image as ImageIcon,
   Phone, Edit3, Loader2, Clock, MessageCircle, RefreshCw, Upload,
-  CookingPot, Soup, Beef, Zap, Pizza, ChefHat, Drumstick, GlassWater, CakeSlice, FileText, CheckCircle, Map, Navigation, Crosshair, LocateFixed
+  CookingPot, Soup, Beef, Zap, Pizza, ChefHat, Drumstick, GlassWater, CakeSlice, FileText, CheckCircle, Map, Navigation, Crosshair, LocateFixed, Tag
 } from 'lucide-react';
 
-declare var L: any; // For Leaflet global access
+declare var L: any; 
 
 interface Props {
   ownerRecord: RestaurantOwner | null;
@@ -53,18 +53,15 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
   const [statusMsg, setStatusMsg] = useState<{type: 'error' | 'success', text: string} | null>(null);
   const [activeTab, setActiveTab] = useState<'menu' | 'settings'>('menu');
   
-  // Map Selection States
   const [showMapModal, setShowMapModal] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerInstanceRef = useRef<any>(null);
 
-  // Verification States
   const [phone, setPhone] = useState('');
   const [nationalIdFile, setNationalIdFile] = useState<File | null>(null);
   const [businessLicenseFile, setBusinessLicenseFile] = useState<File | null>(null);
 
-  // Settings States
   const [restName, setRestName] = useState('');
   const [restAddress, setRestAddress] = useState('');
   const [restPhone, setRestPhone] = useState('');
@@ -72,11 +69,11 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
   const [restLat, setRestLat] = useState('');
   const [restLng, setRestLng] = useState('');
 
-  // Menu States
   const [showAddForm, setShowAddForm] = useState(false);
   const [editItemId, setEditItemId] = useState<string | null>(null);
   const [itemName, setItemName] = useState('');
   const [itemPrice, setItemPrice] = useState('');
+  const [itemDiscountPrice, setItemDiscountPrice] = useState('');
   const [itemCategory, setItemCategory] = useState<string>('cheloei');
   const [itemDescription, setItemDescription] = useState('');
   const [regName, setRegName] = useState('');
@@ -86,40 +83,17 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
     else setLoading(false);
   }, [ownerRecord]);
 
-  // Leaflet initialization effect
   useEffect(() => {
     if (showMapModal && mapContainerRef.current) {
-      // Initialize map after a short delay to ensure container is rendered
       const timer = setTimeout(() => {
-        const initialLat = restLat ? parseFloat(restLat) : 35.6892; // Default to Tehran
+        const initialLat = restLat ? parseFloat(restLat) : 35.6892;
         const initialLng = restLng ? parseFloat(restLng) : 51.3890;
-
         mapInstanceRef.current = L.map(mapContainerRef.current).setView([initialLat, initialLng], 13);
-        
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap'
-        }).addTo(mapInstanceRef.current);
-
-        markerInstanceRef.current = L.marker([initialLat, initialLng], {
-          draggable: true
-        }).addTo(mapInstanceRef.current);
-
-        mapInstanceRef.current.on('click', (e: any) => {
-          markerInstanceRef.current.setLatLng(e.latlng);
-        });
-
-        markerInstanceRef.current.on('dragend', (e: any) => {
-          // Can be used if needed
-        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstanceRef.current);
+        markerInstanceRef.current = L.marker([initialLat, initialLng], { draggable: true }).addTo(mapInstanceRef.current);
+        mapInstanceRef.current.on('click', (e: any) => { markerInstanceRef.current.setLatLng(e.latlng); });
       }, 100);
-
-      return () => {
-        clearTimeout(timer);
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.remove();
-          mapInstanceRef.current = null;
-        }
-      };
+      return () => { clearTimeout(timer); if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
     }
   }, [showMapModal]);
 
@@ -128,10 +102,8 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
     try {
       const { data: restData } = await supabase.from('restaurants').select('*').eq('id', ownerRecord?.restaurant_id).single();
       const { data: menuData } = await supabase.from('menu_items').select('*').eq('restaurant_id', ownerRecord?.restaurant_id).order('created_at', { ascending: false });
-
       setRestaurant(restData);
       setMenuItems(menuData || []);
-      
       if (restData) {
         setPhone(restData.phone || '');
         setRestName(restData.name || '');
@@ -161,26 +133,10 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
 
   const getCurrentGPS = () => {
     setFetchingGps(true);
-    if (!navigator.geolocation) {
-      showStatus('مرورگر شما از GPS پشتیبانی نمی‌کند', 'error');
-      setFetchingGps(false);
-      return;
-    }
-
+    if (!navigator.geolocation) { showStatus('مرورگر شما از GPS پشتیبانی نمی‌کند', 'error'); setFetchingGps(false); return; }
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setRestLat(position.coords.latitude.toFixed(6));
-        setRestLng(position.coords.longitude.toFixed(6));
-        showStatus('لوکیشن شما با موفقیت دریافت شد', 'success');
-        setFetchingGps(false);
-      },
-      (error) => {
-        let msg = 'خطا در دریافت لوکیشن';
-        if (error.code === 1) msg = 'دسترسی به لوکیشن توسط شما رد شد';
-        else if (error.code === 2) msg = 'سیگنال GPS یافت نشد. لطفاً GPS گوشی را روشن کنید';
-        showStatus(msg, 'error');
-        setFetchingGps(false);
-      },
+      (position) => { setRestLat(position.coords.latitude.toFixed(6)); setRestLng(position.coords.longitude.toFixed(6)); showStatus('لوکیشن شما با موفقیت دریافت شد', 'success'); setFetchingGps(false); },
+      (error) => { showStatus('خطا در دریافت لوکیشن', 'error'); setFetchingGps(false); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
@@ -189,11 +145,7 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
     const cleanName = `${prefix}-${Date.now()}.jpg`;
     const path = `${ownerRecord?.restaurant_id}/${cleanName}`;
     const compressed = await compressImage(file, 400);
-
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
-
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
     if (uploadError) throw new Error(`خطا در آپلود: ${uploadError.message}`);
     const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
     return publicUrl;
@@ -209,11 +161,7 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
       if (error) throw error;
       showStatus('تصویر با موفقیت به‌روزرسانی شد');
       fetchData();
-    } catch (e: any) {
-      showStatus(e.message, 'error');
-    } finally {
-      setSaving(false);
-    }
+    } catch (e: any) { showStatus(e.message, 'error'); } finally { setSaving(false); }
   };
 
   const handleSaveSettings = async () => {
@@ -227,34 +175,18 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
         lat: restLat ? parseFloat(restLat) : null,
         lng: restLng ? parseFloat(restLng) : null
       }).eq('id', restaurant?.id);
-
       if (error) throw error;
       showStatus('تنظیمات با موفقیت ذخیره شد');
       fetchData();
-    } catch (e: any) {
-      showStatus(e.message, 'error');
-    } finally {
-      setSaving(false);
-    }
+    } catch (e: any) { showStatus(e.message, 'error'); } finally { setSaving(false); }
   };
 
   const handleSubmitVerification = async () => {
-    if (!phone || !nationalIdFile || !businessLicenseFile) {
-      showStatus('لطفاً تمامی موارد را تکمیل کنید', 'error');
-      return;
-    }
+    if (!phone || !nationalIdFile || !businessLicenseFile) { showStatus('لطفاً تمامی موارد را تکمیل کنید', 'error'); return; }
     setSaving(true);
     try {
-      const [natUrl, licUrl] = await Promise.all([
-        handleFileUpload(nationalIdFile, 'national-id'),
-        handleFileUpload(businessLicenseFile, 'business-license')
-      ]);
-      const { error } = await supabase.from('restaurants').update({
-        phone,
-        national_id_url: natUrl,
-        business_license_url: licUrl,
-        verification_status: 'submitted'
-      }).eq('id', restaurant?.id);
+      const [natUrl, licUrl] = await Promise.all([ handleFileUpload(nationalIdFile, 'national-id'), handleFileUpload(businessLicenseFile, 'business-license') ]);
+      const { error } = await supabase.from('restaurants').update({ phone, national_id_url: natUrl, business_license_url: licUrl, verification_status: 'submitted' }).eq('id', restaurant?.id);
       if (error) throw error;
       showStatus('مدارک ارسال شد. منتظر تایید بمانید.');
       fetchData();
@@ -268,20 +200,34 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
     try {
       const payload: any = {
         restaurant_id: ownerRecord.restaurant_id,
-        name: itemName,
+        name: itemName.trim(),
         price: parseFloat(itemPrice),
+        discount_price: (itemDiscountPrice && itemDiscountPrice.trim() !== '') ? parseFloat(itemDiscountPrice) : null,
         category_key: itemCategory,
-        description: itemDescription
+        description: itemDescription.trim()
       };
+      
       const { error } = editItemId 
         ? await supabase.from('menu_items').update(payload).eq('id', editItemId)
         : await supabase.from('menu_items').insert([payload]);
-
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Database Error:", error);
+        // اگر خطا به دلیل نبود ستون باشد، پیام راهنما می‌دهیم
+        if (error.message.includes('discount_price') || error.code === '42703') {
+           throw new Error('خطا: ستون تخفیف در دیتابیس یافت نشد. لطفاً اسکریپت SQL را در Supabase اجرا کنید.');
+        }
+        throw error;
+      }
+      
       showStatus(editItemId ? 'غذا ویرایش شد' : 'غذا به منو اضافه شد');
       resetForm();
       fetchData();
-    } catch (e: any) { showStatus(e.message, 'error'); } finally { setSaving(false); }
+    } catch (e: any) { 
+      showStatus(e.message, 'error'); 
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const resetForm = () => {
@@ -289,6 +235,7 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
     setEditItemId(null);
     setItemName('');
     setItemPrice('');
+    setItemDiscountPrice('');
     setItemCategory('cheloei');
     setItemDescription('');
   };
@@ -367,20 +314,17 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
   return (
     <div className="pb-24" dir="rtl">
       {statusMsg && (
-        <div className={`fixed top-20 left-4 right-4 z-[100] p-4 rounded-2xl text-white font-black text-center animate-in fade-in slide-in-from-top-2 ${statusMsg.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+        <div className={`fixed top-20 left-4 right-4 z-[100] p-4 rounded-2xl text-white font-black text-center animate-in fade-in slide-in-from-top-2 shadow-2xl ${statusMsg.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
           {statusMsg.text}
         </div>
       )}
 
-      {/* Hero Section with Image Uploads */}
       <div className="h-56 bg-gray-200 relative group overflow-hidden">
         {restaurant?.cover_image ? <img src={restaurant.cover_image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><ImageIcon size={48}/></div>}
         <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
            <Camera size={32} className="text-white" />
            <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleUpdateProfileImage(e.target.files[0], 'cover')} />
         </label>
-        
-        {/* Logo Upload */}
         <div className="absolute -bottom-10 right-6 w-24 h-24 rounded-[2rem] bg-white p-1 shadow-xl group/logo">
            <div className="w-full h-full rounded-[1.8rem] bg-orange-50 flex items-center justify-center overflow-hidden border-2 border-white relative">
               {restaurant?.logo_url ? <img src={restaurant.logo_url} className="w-full h-full object-cover" /> : <Utensils className="text-orange-200" size={32} />}
@@ -401,90 +345,44 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
         {activeTab === 'settings' ? (
           <div className="space-y-6 animate-in slide-in-from-left-4">
              <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 space-y-4 shadow-sm">
-                <div className="space-y-2">
-                   <label className="text-[10px] font-black text-gray-400 mr-2 flex items-center gap-1"><Info size={12}/> نام رستوران:</label>
-                   <input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" value={restName} onChange={e => setRestName(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                   <label className="text-[10px] font-black text-gray-400 mr-2 flex items-center gap-1"><MapPin size={12}/> آدرس دقیق:</label>
-                   <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" value={restAddress} onChange={e => setRestAddress(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                   <label className="text-[10px] font-black text-gray-400 mr-2 flex items-center gap-1"><Phone size={12}/> شماره تماس پاتوق:</label>
-                   <input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold text-left" dir="ltr" value={restPhone} onChange={e => setRestPhone(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                   <label className="text-[10px] font-black text-gray-400 mr-2 flex items-center gap-1"><Clock size={12}/> ساعت کاری (مثال: 09:00-23:00):</label>
-                   <input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold text-left" dir="ltr" placeholder="09:00-23:30" value={restHours} onChange={e => setRestHours(e.target.value)} />
-                </div>
-                
-                {/* GPS Location Section */}
+                <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 mr-2 flex items-center gap-1"><Info size={12}/> نام رستوران:</label><input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" value={restName} onChange={e => setRestName(e.target.value)} /></div>
+                <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 mr-2 flex items-center gap-1"><MapPin size={12}/> آدرس دقیق:</label><textarea className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" value={restAddress} onChange={e => setRestAddress(e.target.value)} /></div>
+                <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 mr-2 flex items-center gap-1"><Phone size={12}/> شماره تماس پاتوق:</label><input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold text-left" dir="ltr" value={restPhone} onChange={e => setRestPhone(e.target.value)} /></div>
+                <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 mr-2 flex items-center gap-1"><Clock size={12}/> ساعت کاری:</label><input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold text-left" dir="ltr" placeholder="09:00-23:30" value={restHours} onChange={e => setRestHours(e.target.value)} /></div>
                 <div className="space-y-3 pt-2">
-                   <div className="flex justify-between items-center mr-2">
-                      <label className="text-[10px] font-black text-gray-400 flex items-center gap-1"><Navigation size={12}/> موقعیت جغرافیایی (لوکیشن):</label>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={getCurrentGPS} 
-                          disabled={fetchingGps}
-                          className="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-1 active:scale-95 transition-all"
-                        >
-                          {fetchingGps ? <Loader2 className="animate-spin" size={12}/> : <LocateFixed size={12}/>}
-                          خودکار (GPS)
-                        </button>
-                        <button 
-                          onClick={() => setShowMapModal(true)} 
-                          className="text-[9px] font-black text-orange-600 bg-orange-50 px-3 py-1.5 rounded-full flex items-center gap-1 active:scale-95 transition-all"
-                        >
-                          <Map size={12}/>
-                          دریافت از نقشه
-                        </button>
-                      </div>
-                   </div>
+                   <div className="flex justify-between items-center mr-2"><label className="text-[10px] font-black text-gray-400 flex items-center gap-1"><Navigation size={12}/> موقعیت جغرافیایی:</label><div className="flex gap-2"><button onClick={getCurrentGPS} disabled={fetchingGps} className="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-1 active:scale-95 transition-all">{fetchingGps ? <Loader2 className="animate-spin" size={12}/> : <LocateFixed size={12}/>} خودکار</button><button onClick={() => setShowMapModal(true)} className="text-[9px] font-black text-orange-600 bg-orange-50 px-3 py-1.5 rounded-full flex items-center gap-1 active:scale-95 transition-all"><Map size={12}/> نقشه</button></div></div>
                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                         <input className="w-full p-4 bg-gray-50 rounded-2xl text-[10px] font-bold text-center" placeholder="عرض جغرافیایی" value={restLat} onChange={e => setRestLat(e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                         <input className="w-full p-4 bg-gray-50 rounded-2xl text-[10px] font-bold text-center" placeholder="طول جغرافیایی" value={restLng} onChange={e => setRestLng(e.target.value)} />
-                      </div>
+                      <input className="w-full p-4 bg-gray-50 rounded-2xl text-[10px] font-bold text-center" placeholder="عرض" value={restLat} onChange={e => setRestLat(e.target.value)} />
+                      <input className="w-full p-4 bg-gray-50 rounded-2xl text-[10px] font-bold text-center" placeholder="طول" value={restLng} onChange={e => setRestLng(e.target.value)} />
                    </div>
-                   <p className="text-[8px] font-bold text-gray-300 text-center leading-relaxed px-4">موقعیت دقیق رستوران برای نمایش در «اطراف من» ضروری است.</p>
                 </div>
-
-                <button onClick={handleSaveSettings} disabled={saving} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-sm shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
-                   {saving ? <Loader2 className="animate-spin" size={20}/> : <><Save size={18}/> ذخیره تنظیمات</>}
-                </button>
+                <button onClick={handleSaveSettings} disabled={saving} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-sm shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all">{saving ? <Loader2 className="animate-spin" size={20}/> : <><Save size={18}/> ذخیره تنظیمات</>}</button>
              </div>
           </div>
         ) : (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-black text-gray-900">مدیریت منوی غذا</h3>
-              <button onClick={() => { resetForm(); setShowAddForm(true); }} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1 shadow-lg active:scale-95">
-                <Plus size={16} /> افزودن غذا
-              </button>
+              <button onClick={() => { resetForm(); setShowAddForm(true); }} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1 shadow-lg active:scale-95"><Plus size={16} /> افزودن غذا</button>
             </div>
-
             {showAddForm && (
               <div className="bg-white p-6 rounded-[2.5rem] border-2 border-orange-500 space-y-4 shadow-xl animate-in zoom-in-95">
                 <div className="flex justify-between items-center"><span className="font-black text-orange-600">اطلاعات غذا</span><button onClick={resetForm}><X size={20}/></button></div>
-                <input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" placeholder="نام غذا" value={itemName} onChange={e => setItemName(e.target.value)} />
-                <input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" placeholder="قیمت (تومان)" type="number" value={itemPrice} onChange={e => setItemPrice(e.target.value)} />
+                <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 mr-2">نام غذا:</label><input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" placeholder="نام غذا" value={itemName} onChange={e => setItemName(e.target.value)} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 mr-2">قیمت اصلی:</label><input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" placeholder="تومان" type="number" value={itemPrice} onChange={e => setItemPrice(e.target.value)} /></div>
+                  <div className="space-y-1"><label className="text-[10px] font-black text-orange-500 mr-2 flex items-center gap-1"><Tag size={10}/> قیمت تخفیف (اختیاری):</label><input className="w-full p-4 bg-orange-50 border border-orange-100 rounded-2xl text-xs font-bold text-orange-600" placeholder="تومان" type="number" value={itemDiscountPrice} onChange={e => setItemDiscountPrice(e.target.value)} /></div>
+                </div>
                 <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" placeholder="توضیحات کوتاه..." value={itemDescription} onChange={e => setItemDescription(e.target.value)} />
                 <div className="flex flex-wrap gap-2">
                   {CATEGORIES.map(cat => {
                     const Icon = CATEGORY_MAP[cat.icon_name];
-                    return (
-                      <button key={cat.key} onClick={() => setItemCategory(cat.key)} className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-black transition-all ${itemCategory === cat.key ? 'bg-orange-500 border-orange-500 text-white' : 'bg-gray-50 border-gray-100 text-gray-500'}`}>
-                        <Icon size={14} /> {cat.title_fa}
-                      </button>
-                    );
+                    return (<button key={cat.key} onClick={() => setItemCategory(cat.key)} className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-black transition-all ${itemCategory === cat.key ? 'bg-orange-500 border-orange-500 text-white' : 'bg-gray-50 border-gray-100 text-gray-500'}`}><Icon size={14} /> {cat.title_fa}</button>);
                   })}
                 </div>
                 <button onClick={handleUpsertItem} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-sm active:scale-95">ذخیره غذا</button>
               </div>
             )}
-
             <div className="space-y-6">
               {CATEGORIES.map(cat => {
                 const items = menuItems.filter(i => i.category_key === cat.key);
@@ -492,16 +390,23 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
                 const Icon = CATEGORY_MAP[cat.icon_name];
                 return (
                   <div key={cat.key} className="space-y-3">
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Icon size={16} className="text-orange-500" />
-                      <span className="text-xs font-black">{cat.title_fa}</span>
-                    </div>
+                    <div className="flex items-center gap-2 text-gray-400"><Icon size={16} className="text-orange-500" /><span className="text-xs font-black">{cat.title_fa}</span></div>
                     <div className="grid gap-3">
                       {items.map(item => (
                         <div key={item.id} className="bg-white p-4 rounded-3xl border border-gray-100 flex justify-between items-center shadow-sm">
-                          <div><p className="text-sm font-black text-gray-900">{item.name}</p><p className="text-[11px] font-bold text-orange-600">{item.price.toLocaleString()} تومان</p></div>
+                          <div>
+                            <p className="text-sm font-black text-gray-900">{item.name}</p>
+                            {item.discount_price ? (
+                              <div className="flex items-center gap-2">
+                                <p className="text-[11px] font-bold text-gray-300 line-through">{item.price.toLocaleString()}</p>
+                                <p className="text-[11px] font-black text-orange-600">{item.discount_price.toLocaleString()} تومان</p>
+                              </div>
+                            ) : (
+                              <p className="text-[11px] font-bold text-orange-600">{item.price.toLocaleString()} تومان</p>
+                            )}
+                          </div>
                           <div className="flex gap-2">
-                            <button onClick={() => { setEditItemId(item.id); setItemName(item.name); setItemPrice(item.price.toString()); setItemCategory(item.category_key); setItemDescription(item.description || ''); setShowAddForm(true); }} className="p-2 bg-blue-50 text-blue-500 rounded-lg active:scale-90"><Edit3 size={16}/></button>
+                            <button onClick={() => { setEditItemId(item.id); setItemName(item.name); setItemPrice(item.price.toString()); setItemDiscountPrice(item.discount_price?.toString() || ''); setItemCategory(item.category_key); setItemDescription(item.description || ''); setShowAddForm(true); }} className="p-2 bg-blue-50 text-blue-500 rounded-lg active:scale-90"><Edit3 size={16}/></button>
                             <button onClick={async () => { if(confirm('حذف شود؟')) { await supabase.from('menu_items').delete().eq('id', item.id); fetchData(); } }} className="p-2 bg-red-50 text-red-500 rounded-lg active:scale-90"><Trash2 size={16}/></button>
                           </div>
                         </div>
@@ -515,32 +420,15 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
         )}
       </div>
 
-      {/* Map Picker Modal */}
       {showMapModal && (
-        <div className="fixed inset-0 bg-black/80 z-[200] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/80 z-[200] p-4 flex items-center justify-center backdrop-blur-sm">
            <div className="bg-white w-full h-[80vh] max-w-md rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95">
-              <div className="p-5 flex justify-between items-center border-b border-gray-100 shrink-0">
+              <div className="p-5 flex justify-between items-center border-b border-gray-100">
                  <h3 className="font-black text-gray-900">انتخاب مکان رستوران</h3>
                  <button onClick={() => setShowMapModal(false)} className="p-2 text-gray-400"><X size={24} /></button>
               </div>
-              
-              <div className="flex-1 relative">
-                 <div ref={mapContainerRef} className="w-full h-full" />
-                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-orange-500 text-white px-4 py-2 rounded-full text-[10px] font-black shadow-lg pointer-events-none">
-                    نقشه را لمس کنید یا پین را جابجا کنید
-                 </div>
-              </div>
-
-              <div className="p-6 bg-gray-50 shrink-0">
-                 <button 
-                  onClick={handleConfirmMapSelection}
-                  className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-sm shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
-                 >
-                    <CheckCircle2 size={20}/>
-                    تایید این موقعیت
-                 </button>
-                 <p className="text-center text-[9px] font-bold text-gray-400 mt-3 italic">موقعیت پین قرمز رنگ به عنوان مختصات رستوران ثبت خواهد شد.</p>
-              </div>
+              <div className="flex-1 relative"><div ref={mapContainerRef} className="w-full h-full" /></div>
+              <div className="p-6 bg-gray-50"><button onClick={handleConfirmMapSelection} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-all"><CheckCircle2 size={20}/> تایید این موقعیت</button></div>
            </div>
         </div>
       )}

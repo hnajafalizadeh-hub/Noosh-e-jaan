@@ -1,13 +1,6 @@
 
 {
   "rewrites": [
-    {
-      "source": "/(icon\\.png|manifest\\.json|appimages/.*)",
-      "destination": "/$1"
-    },
-    {
-      "source": "/((?!.*\\.(?:png|jpg|jpeg|gif|webp|svg|json|js|css|ico)).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

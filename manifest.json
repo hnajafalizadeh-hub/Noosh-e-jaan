@@ -1,0 +1,27 @@
+
+{
+  "name": "چی بقولم؟",
+  "short_name": "چی بقولم؟",
+  "description": "اولین شبکه اجتماعی تخصصی برای شکموهای ایران؛ راهنمای نهایی برای پاسخ به سوال «حالا چی بخوریم؟»",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0c1425",
+  "theme_color": "#f97316",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["food", "social"]
+}

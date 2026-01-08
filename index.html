@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="چی بقولم؟">
     <meta name="theme-color" content="#f97316">
     
-    <!-- Prevent Cache issues in standalone -->
+    <!-- Force iOS to refresh icon - Prevent Cache -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -22,11 +22,13 @@
     <!-- Favicon and Icons -->
     <link rel="icon" type="image/png" href="icon.png">
     
-    <!-- برای رفع مشکل لبه‌های سفید در iOS، تصویر icon.png باید یک مربع کامل بدون شفافیت در گوشه‌ها باشد -->
+    <!-- iOS Icons - Crucial for removing white edges -->
+    <!-- نکته: فایل icon.png باید فاقد هرگونه شفافیت (Alpha Channel) در گوشه‌ها باشد -->
     <link rel="apple-touch-icon" href="icon.png">
+    <link rel="apple-touch-icon-precomposed" href="icon.png">
     <link rel="apple-touch-icon" sizes="152x152" href="icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
-    <link rel="apple-touch-icon" sizes="167x167" href="icon.png">
+    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="icon.png">
     
     <!-- Manifest Link -->
     <link rel="manifest" href="metadata.json">
@@ -98,7 +100,6 @@
 </head>
 <body class="safe-top safe-bottom">
     <div id="root"></div>
-    <!-- استفاده از مسیر مطلق برای اطمینان از لود شدن در حالت PWA -->
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>

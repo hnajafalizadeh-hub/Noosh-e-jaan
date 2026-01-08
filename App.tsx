@@ -237,7 +237,7 @@ const App: React.FC = () => {
         )}
         {view === 'user_profile' && selectedUserId && <ProfileView key={selectedUserId} userId={selectedUserId} onBack={() => setView(prevView)} onPostClick={(id) => { setPrevView(view); setSelectedPostId(id); setView('post_detail'); }} onUserClick={(uid) => { setSelectedUserId(uid); setView('user_profile'); }} />}
         {view === 'admin' && profile?.is_admin && <AdminPanel />}
-        {view === 'restaurant_detail' && selectedRestId && <RestaurantDetail restaurantId={selectedRestId} onBack={() => setView(prevView)} />}
+        {view === 'restaurant_detail' && selectedRestId && <RestaurantDetail restaurantId={selectedRestId} onBack={() => setView(prevView)} onPostClick={(id) => { setPrevView(view); setSelectedPostId(id); setView('post_detail'); }} />}
         {view === 'post_detail' && selectedPostId && <PostDetail postId={selectedPostId} onBack={() => setView(prevView)} />}
       </main>
 

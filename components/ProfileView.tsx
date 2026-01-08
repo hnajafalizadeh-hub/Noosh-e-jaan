@@ -6,7 +6,8 @@ import { compressImage } from '../lib/imageUtils';
 import { 
   Settings, Grid, Camera, Image as ImageIcon, Loader2, Bell, Heart, 
   MessageCircle, User, Search, UserPlus, UserMinus, ArrowRight, 
-  UserCheck, ShieldAlert, Moon, Sun, X, ChevronLeft, LogOut
+  UserCheck, ShieldAlert, Moon, Sun, X, ChevronLeft, LogOut,
+  Edit2, Save, Smartphone, CheckCircle2, AlertCircle
 } from 'lucide-react';
 
 interface ProfileViewProps {
@@ -41,11 +42,19 @@ const ProfileView: React.FC<ProfileViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+
+  // Edit States
+  const [editFullName, setEditFullName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState(false);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,7 +62,10 @@ const ProfileView: React.FC<ProfileViewProps> = ({
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id || null));
+    supabase.auth.getUser().then(({ data }) => {
+      const uid = data.user?.id || null;
+      setCurrentUserId(uid);
+    });
   }, []);
 
   useEffect(() => {
@@ -120,6 +132,11 @@ const ProfileView: React.FC<ProfileViewProps> = ({
         ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         
         setActivities(combined);
+
+        // Sync edit states
+        setEditFullName(profile?.full_name || '');
+        setEditUsername(profile?.username || '');
+        setEditPhone(profile?.phone || '');
       }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
@@ -159,6 +176,56 @@ const ProfileView: React.FC<ProfileViewProps> = ({
       await supabase.from('profiles').update(updateData).eq('id', profile.id);
       setProfile({ ...profile, ...updateData });
     } catch (e) { console.error(e); } finally { setUpdating(false); }
+  };
+
+  const handleSaveChanges = async () => {
+    if (!profile || !currentUserId) return;
+    setUpdating(true);
+    setEditError(null);
+    setEditSuccess(false);
+
+    try {
+      // Basic validation
+      if (!editFullName.trim() || !editUsername.trim()) {
+        throw new Error('نام و نام کاربری نمی‌توانند خالی باشند.');
+      }
+
+      // Check username uniqueness if changed
+      if (editUsername.toLowerCase() !== profile.username.toLowerCase()) {
+        const { data: existing } = await supabase.from('profiles').select('id').eq('username', editUsername.toLowerCase()).maybeSingle();
+        if (existing) throw new Error('این نام کاربری قبلاً انتخاب شده است.');
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editFullName.trim(),
+          username: editUsername.toLowerCase().trim(),
+          phone: editPhone.trim()
+        })
+        .eq('id', currentUserId);
+
+      if (error) throw error;
+
+      // Update local profile state
+      setProfile({
+        ...profile,
+        full_name: editFullName.trim(),
+        username: editUsername.toLowerCase().trim(),
+        phone: editPhone.trim()
+      });
+
+      setEditSuccess(true);
+      setTimeout(() => {
+        setShowEditProfile(false);
+        setEditSuccess(false);
+      }, 1500);
+
+    } catch (e: any) {
+      setEditError(e.message || 'خطا در ذخیره‌سازی اطلاعات');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   if (loading || !profile) return <div className="p-20 text-center"><Loader2 className="animate-spin text-orange-500 mx-auto" /></div>;
@@ -346,22 +413,40 @@ const ProfileView: React.FC<ProfileViewProps> = ({
       {/* Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex flex-col justify-end">
-           <div className="bg-white dark:bg-dark-card rounded-t-[3rem] w-full max-w-md mx-auto p-8 space-y-8 animate-in slide-in-from-bottom-full duration-300">
+           <div className="bg-white dark:bg-dark-card rounded-t-[3rem] w-full max-w-md mx-auto p-8 space-y-6 animate-in slide-in-from-bottom-full duration-300">
               <div className="flex justify-between items-center">
                  <h3 className="font-black text-xl text-gray-900 dark:text-white">تنظیمات پاتوق</h3>
-                 <button onClick={() => setShowSettings(false)} className="p-2 bg-gray-50 dark:bg-dark-bg rounded-2xl text-gray-400 dark:text-gray-300 transition-colors">
+                 <button onClick={() => { setShowSettings(false); setShowEditProfile(false); }} className="p-2 bg-gray-50 dark:bg-dark-bg rounded-2xl text-gray-400 dark:text-gray-300 transition-colors">
                     <X size={24} />
                  </button>
               </div>
 
-              <div className="space-y-4">
-                 <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mr-2">ظاهر اپلیکیشن</p>
-                 
-                 {/* Dark Mode Toggle Switch */}
-                 <div 
+              {!showEditProfile ? (
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mr-2">عمومی</p>
+                  
+                  {/* Edit Profile Button */}
+                  <div 
+                    onClick={() => setShowEditProfile(true)}
+                    className="flex items-center justify-between p-5 bg-gray-50 dark:bg-dark-bg rounded-3xl border border-gray-100 dark:border-dark-border cursor-pointer transition-all active:scale-95"
+                  >
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 bg-white dark:bg-dark-card rounded-2xl text-orange-500 shadow-sm">
+                          <Edit2 size={22} />
+                       </div>
+                       <div>
+                          <p className="text-sm font-black text-gray-900 dark:text-white">اصلاح اطلاعات کاربری</p>
+                          <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500">تغییر نام، نام کاربری و شماره همراه</p>
+                       </div>
+                    </div>
+                    <ChevronLeft size={20} className="text-gray-300" />
+                  </div>
+
+                  {/* Dark Mode Toggle Switch */}
+                  <div 
                     onClick={onToggleDarkMode}
                     className="flex items-center justify-between p-5 bg-gray-50 dark:bg-dark-bg rounded-3xl border border-gray-100 dark:border-dark-border cursor-pointer transition-all active:scale-95"
-                 >
+                  >
                     <div className="flex items-center gap-4">
                        <div className={`p-3 rounded-2xl ${isDarkMode ? 'bg-orange-500 text-white' : 'bg-white dark:bg-dark-card text-orange-500 shadow-sm'}`}>
                           {isDarkMode ? <Moon size={22} /> : <Sun size={22} />}
@@ -375,30 +460,77 @@ const ProfileView: React.FC<ProfileViewProps> = ({
                     <div className={`w-12 h-6 rounded-full relative transition-colors ${isDarkMode ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-800'}`}>
                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all ${isDarkMode ? 'left-1' : 'left-7'}`}></div>
                     </div>
-                 </div>
+                  </div>
 
-                 {/* Other Placeholder Settings */}
-                 <div className="p-5 bg-gray-50 dark:bg-dark-bg rounded-3xl border border-gray-100 dark:border-dark-border flex items-center justify-between opacity-50 cursor-not-allowed">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 bg-white dark:bg-dark-card rounded-2xl text-blue-500 shadow-sm">
-                          <ImageIcon size={22} />
-                       </div>
-                       <div>
-                          <p className="text-sm font-black text-gray-900 dark:text-white">کیفیت تصاویر</p>
-                          <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500">بهینه‌سازی مصرف اینترنت</p>
-                       </div>
-                    </div>
-                    <ChevronLeft size={20} className="text-gray-300" />
-                 </div>
-
-                 <button 
+                  <button 
                   onClick={() => { supabase.auth.signOut(); setShowSettings(false); }}
                   className="w-full flex items-center gap-4 p-5 bg-red-50 dark:bg-red-500/10 rounded-3xl text-red-600 transition-all active:scale-95"
-                 >
+                  >
                     <div className="p-3 bg-white dark:bg-dark-card rounded-2xl shadow-sm"><LogOut size={22}/></div>
                     <span className="text-sm font-black">خروج از حساب کاربری</span>
-                 </button>
-              </div>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4 animate-in slide-in-from-left-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <button onClick={() => setShowEditProfile(false)} className="p-2 text-gray-400"><ArrowRight size={20} /></button>
+                    <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">ویرایش پروفایل</p>
+                  </div>
+
+                  {editError && (
+                    <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-2xl flex items-center gap-2 text-red-600 text-[10px] font-bold">
+                      <AlertCircle size={16} /> {editError}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 mr-2">نام و نام خانوادگی</label>
+                      <input 
+                        className="w-full p-4 bg-gray-50 dark:bg-dark-bg border border-gray-100 dark:border-dark-border rounded-2xl text-xs font-bold outline-none dark:text-white"
+                        value={editFullName}
+                        onChange={(e) => setEditFullName(e.target.value)}
+                        placeholder="نام شما"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 mr-2">نام کاربری (آیدی)</label>
+                      <div className="relative">
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-black">@</span>
+                        <input 
+                          className="w-full pr-8 pl-4 py-4 bg-gray-50 dark:bg-dark-bg border border-gray-100 dark:border-dark-border rounded-2xl text-xs font-bold outline-none dark:text-white text-left"
+                          dir="ltr"
+                          value={editUsername}
+                          onChange={(e) => setEditUsername(e.target.value)}
+                          placeholder="username"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 mr-2">شماره همراه</label>
+                      <div className="relative">
+                        <Smartphone className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input 
+                          className="w-full pr-12 pl-4 py-4 bg-gray-50 dark:bg-dark-bg border border-gray-100 dark:border-dark-border rounded-2xl text-xs font-bold outline-none dark:text-white text-left"
+                          dir="ltr"
+                          value={editPhone}
+                          onChange={(e) => setEditPhone(e.target.value)}
+                          placeholder="09123456789"
+                        />
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={handleSaveChanges}
+                      disabled={updating}
+                      className="w-full py-5 bg-orange-600 text-white rounded-[1.8rem] font-black text-sm shadow-xl shadow-orange-100 dark:shadow-none flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 transition-all mt-4"
+                    >
+                      {updating ? <Loader2 className="animate-spin" size={20} /> : (editSuccess ? <CheckCircle2 size={20} /> : <><Save size={18} /> ذخیره تغییرات</>)}
+                    </button>
+                    {editSuccess && <p className="text-center text-[10px] font-black text-green-500 animate-pulse">تغییرات با موفقیت اعمال شد.</p>}
+                  </div>
+                </div>
+              )}
 
               <div className="text-center pb-4">
                  <p className="text-[10px] font-bold text-gray-300 dark:text-gray-600">نسخه ۱.۴.۰ - چی بقولم؟</p>

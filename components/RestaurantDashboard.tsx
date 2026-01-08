@@ -8,7 +8,7 @@ import {
   Info, DollarSign, AlertCircle, ShieldCheck, 
   CheckCircle2, Camera, Image as ImageIcon,
   Phone, Edit3, Loader2, Clock, MessageCircle, RefreshCw, Upload,
-  CookingPot, Soup, Beef, Zap, Pizza, ChefHat, Drumstick, GlassWater, CakeSlice, FileText, CheckCircle, Map, Navigation, Crosshair, LocateFixed, Tag
+  CookingPot, Soup, Beef, Zap, Pizza, ChefHat, Drumstick, GlassWater, CakeSlice, FileText, CheckCircle, Map, Navigation, Crosshair, LocateFixed, Tag, Trash
 } from 'lucide-react';
 
 declare var L: any; 
@@ -76,7 +76,14 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
   const [itemDiscountPrice, setItemDiscountPrice] = useState('');
   const [itemCategory, setItemCategory] = useState<string>('cheloei');
   const [itemDescription, setItemDescription] = useState('');
+  const [itemImageFile, setItemImageFile] = useState<File | null>(null);
+  const [itemImagePreview, setItemImagePreview] = useState<string | null>(null);
+  
   const [regName, setRegName] = useState('');
+  
+  // Deletion States
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
 
   useEffect(() => {
     if (ownerRecord) fetchData();
@@ -119,6 +126,36 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
   const showStatus = (text: string, type: 'error' | 'success' = 'success') => {
     setStatusMsg({ text, type });
     setTimeout(() => setStatusMsg(null), 6000);
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('menu_items').delete().eq('id', id);
+      if (error) throw error;
+      showStatus('غذا با موفقیت حذف شد');
+      fetchData();
+    } catch (e: any) {
+      showStatus(e.message, 'error');
+    } finally {
+      setSaving(false);
+      setItemToDelete(null);
+    }
+  };
+
+  const handleClearMenu = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('menu_items').delete().eq('restaurant_id', ownerRecord?.restaurant_id);
+      if (error) throw error;
+      showStatus('کل منو پاکسازی شد');
+      setShowClearAllConfirm(false);
+      fetchData();
+    } catch (e: any) {
+      showStatus(e.message, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleConfirmMapSelection = () => {
@@ -198,27 +235,28 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
     if (!itemName || !itemPrice || !ownerRecord) return;
     setSaving(true);
     try {
+      let imageUrl = itemImagePreview || null;
+      
+      // If a new file is selected, upload it
+      if (itemImageFile) {
+        imageUrl = await handleFileUpload(itemImageFile, 'menu-item', 'post-photos');
+      }
+
       const payload: any = {
         restaurant_id: ownerRecord.restaurant_id,
         name: itemName.trim(),
         price: parseFloat(itemPrice),
         discount_price: (itemDiscountPrice && itemDiscountPrice.trim() !== '') ? parseFloat(itemDiscountPrice) : null,
         category_key: itemCategory,
-        description: itemDescription.trim()
+        description: itemDescription.trim(),
+        image_url: imageUrl
       };
       
       const { error } = editItemId 
         ? await supabase.from('menu_items').update(payload).eq('id', editItemId)
         : await supabase.from('menu_items').insert([payload]);
       
-      if (error) {
-        console.error("Database Error:", error);
-        // اگر خطا به دلیل نبود ستون باشد، پیام راهنما می‌دهیم
-        if (error.message.includes('discount_price') || error.code === '42703') {
-           throw new Error('خطا: ستون تخفیف در دیتابیس یافت نشد. لطفاً اسکریپت SQL را در Supabase اجرا کنید.');
-        }
-        throw error;
-      }
+      if (error) throw error;
       
       showStatus(editItemId ? 'غذا ویرایش شد' : 'غذا به منو اضافه شد');
       resetForm();
@@ -230,6 +268,16 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
     }
   };
 
+  const handleItemImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setItemImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setItemImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const resetForm = () => {
     setShowAddForm(false);
     setEditItemId(null);
@@ -238,6 +286,8 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
     setItemDiscountPrice('');
     setItemCategory('cheloei');
     setItemDescription('');
+    setItemImageFile(null);
+    setItemImagePreview(null);
   };
 
   if (loading) return <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-orange-500" size={40} /></div>;
@@ -361,13 +411,56 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-black text-gray-900">مدیریت منوی غذا</h3>
-              <button onClick={() => { resetForm(); setShowAddForm(true); }} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1 shadow-lg active:scale-95"><Plus size={16} /> افزودن غذا</button>
+            <div className="flex justify-between items-center bg-white p-4 rounded-3xl border border-gray-50 shadow-sm">
+              <h3 className="text-sm font-black text-gray-900">مدیریت منو</h3>
+              <div className="flex gap-2">
+                {menuItems.length > 0 && (
+                   <button onClick={() => setShowClearAllConfirm(true)} className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-1 active:scale-95">
+                      <Trash size={14} /> پاکسازی کل منو
+                   </button>
+                )}
+                <button onClick={() => { resetForm(); setShowAddForm(true); }} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-1 shadow-lg active:scale-95">
+                  <Plus size={14} /> افزودن غذا
+                </button>
+              </div>
             </div>
+
+            {/* Clear All Confirmation UI */}
+            {showClearAllConfirm && (
+              <div className="bg-red-50 p-6 rounded-[2.5rem] border-2 border-red-200 space-y-4 animate-in zoom-in-95">
+                <p className="text-xs font-black text-red-700 text-center">آیا مطمئن هستید که می‌خواهید تمام منو را پاک کنید؟ این عمل غیرقابل بازگشت است.</p>
+                <div className="flex gap-3">
+                   <button onClick={handleClearMenu} disabled={saving} className="flex-1 py-3 bg-red-600 text-white rounded-2xl text-xs font-black active:scale-95">بله، کل منو پاک شود</button>
+                   <button onClick={() => setShowClearAllConfirm(false)} className="flex-1 py-3 bg-white text-gray-500 rounded-2xl text-xs font-black border border-gray-200">انصراف</button>
+                </div>
+              </div>
+            )}
+
             {showAddForm && (
               <div className="bg-white p-6 rounded-[2.5rem] border-2 border-orange-500 space-y-4 shadow-xl animate-in zoom-in-95">
                 <div className="flex justify-between items-center"><span className="font-black text-orange-600">اطلاعات غذا</span><button onClick={resetForm}><X size={20}/></button></div>
+                
+                {/* Image Upload Area for Menu Item */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 mr-2">تصویر غذا:</label>
+                  <div className="relative group aspect-video bg-gray-50 rounded-2xl overflow-hidden border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer">
+                    {itemImagePreview ? (
+                      <img src={itemImagePreview} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-gray-300">
+                        <Camera size={32} />
+                        <span className="text-[9px] font-black">انتخاب تصویر</span>
+                      </div>
+                    )}
+                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleItemImageChange} />
+                    {itemImagePreview && (
+                      <button onClick={(e) => { e.stopPropagation(); setItemImagePreview(null); setItemImageFile(null); }} className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-lg shadow-lg">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 mr-2">نام غذا:</label><input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" placeholder="نام غذا" value={itemName} onChange={e => setItemName(e.target.value)} /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 mr-2">قیمت اصلی:</label><input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" placeholder="تومان" type="number" value={itemPrice} onChange={e => setItemPrice(e.target.value)} /></div>
@@ -380,9 +473,12 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
                     return (<button key={cat.key} onClick={() => setItemCategory(cat.key)} className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-black transition-all ${itemCategory === cat.key ? 'bg-orange-500 border-orange-500 text-white' : 'bg-gray-50 border-gray-100 text-gray-500'}`}><Icon size={14} /> {cat.title_fa}</button>);
                   })}
                 </div>
-                <button onClick={handleUpsertItem} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-sm active:scale-95">ذخیره غذا</button>
+                <button onClick={handleUpsertItem} disabled={saving} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-sm active:scale-95 flex justify-center items-center gap-2">
+                   {saving ? <Loader2 size={18} className="animate-spin" /> : 'ذخیره غذا'}
+                </button>
               </div>
             )}
+
             <div className="space-y-6">
               {CATEGORIES.map(cat => {
                 const items = menuItems.filter(i => i.category_key === cat.key);
@@ -390,31 +486,67 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
                 const Icon = CATEGORY_MAP[cat.icon_name];
                 return (
                   <div key={cat.key} className="space-y-3">
-                    <div className="flex items-center gap-2 text-gray-400"><Icon size={16} className="text-orange-500" /><span className="text-xs font-black">{cat.title_fa}</span></div>
+                    <div className="flex items-center gap-2 text-gray-400"><Icon size={16} className="text-orange-500" /><span className="text-[11px] font-black">{cat.title_fa}</span></div>
                     <div className="grid gap-3">
                       {items.map(item => (
-                        <div key={item.id} className="bg-white p-4 rounded-3xl border border-gray-100 flex justify-between items-center shadow-sm">
-                          <div>
-                            <p className="text-sm font-black text-gray-900">{item.name}</p>
-                            {item.discount_price ? (
-                              <div className="flex items-center gap-2">
-                                <p className="text-[11px] font-bold text-gray-300 line-through">{item.price.toLocaleString()}</p>
-                                <p className="text-[11px] font-black text-orange-600">{item.discount_price.toLocaleString()} تومان</p>
-                              </div>
-                            ) : (
-                              <p className="text-[11px] font-bold text-orange-600">{item.price.toLocaleString()} تومان</p>
-                            )}
+                        <div key={item.id} className="bg-white p-4 rounded-[2rem] border border-gray-100 flex justify-between items-center shadow-sm relative overflow-hidden group">
+                          <div className="flex gap-4 items-center">
+                            <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                              {item.image_url ? (
+                                <img src={item.image_url} className="w-full h-full object-cover" />
+                              ) : (
+                                <Utensils size={20} className="text-gray-200" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-black text-gray-900 truncate">{item.name}</p>
+                              {item.discount_price ? (
+                                <div className="flex items-center gap-2">
+                                  <p className="text-[10px] font-bold text-gray-300 line-through">{item.price.toLocaleString()}</p>
+                                  <p className="text-[11px] font-black text-orange-600">{item.discount_price.toLocaleString()} تومان</p>
+                                </div>
+                              ) : (
+                                <p className="text-[11px] font-bold text-orange-600">{item.price.toLocaleString()} تومان</p>
+                              )}
+                            </div>
                           </div>
+                          
                           <div className="flex gap-2">
-                            <button onClick={() => { setEditItemId(item.id); setItemName(item.name); setItemPrice(item.price.toString()); setItemDiscountPrice(item.discount_price?.toString() || ''); setItemCategory(item.category_key); setItemDescription(item.description || ''); setShowAddForm(true); }} className="p-2 bg-blue-50 text-blue-500 rounded-lg active:scale-90"><Edit3 size={16}/></button>
-                            <button onClick={async () => { if(confirm('حذف شود؟')) { await supabase.from('menu_items').delete().eq('id', item.id); fetchData(); } }} className="p-2 bg-red-50 text-red-500 rounded-lg active:scale-90"><Trash2 size={16}/></button>
+                            <button onClick={() => { setEditItemId(item.id); setItemName(item.name); setItemPrice(item.price.toString()); setItemDiscountPrice(item.discount_price?.toString() || ''); setItemCategory(item.category_key); setItemDescription(item.description || ''); setItemImagePreview(item.image_url || null); setShowAddForm(true); }} className="p-3 bg-blue-50 text-blue-500 rounded-2xl active:scale-90 transition-all">
+                               <Edit3 size={18}/>
+                            </button>
+                            <button 
+                              onClick={() => setItemToDelete(item.id)}
+                              className="p-3 bg-red-50 text-red-500 rounded-2xl active:scale-90 transition-all"
+                            >
+                               <Trash2 size={18}/>
+                            </button>
                           </div>
+
+                          {/* Individual Deletion Overlay */}
+                          {itemToDelete === item.id && (
+                             <div className="absolute inset-0 bg-red-600 flex items-center justify-around px-4 animate-in slide-in-from-right-full">
+                                <span className="text-white text-[10px] font-black">حذف شود؟</span>
+                                <div className="flex gap-2">
+                                   <button onClick={() => handleDeleteItem(item.id)} disabled={saving} className="bg-white text-red-600 px-4 py-1.5 rounded-full text-[10px] font-black flex items-center gap-1 shadow-sm">
+                                      {saving ? <Loader2 size={12} className="animate-spin" /> : <><CheckCircle2 size={14}/> بله</>}
+                                   </button>
+                                   <button onClick={() => setItemToDelete(null)} className="bg-red-700 text-white px-4 py-1.5 rounded-full text-[10px] font-black">خیر</button>
+                                </div>
+                             </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
                 );
               })}
+              {menuItems.length === 0 && !loading && (
+                 <div className="text-center py-20 opacity-20">
+                    <Utensils size={48} className="mx-auto mb-2" />
+                    <p className="text-xs font-bold italic">هنوز هیچ غذایی در منو ثبت نشده است.</p>
+                 </div>
+              )}
             </div>
           </div>
         )}

@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Restaurant } from '../types';
-import { compressImage, getCroppedImg } from '../lib/imageUtils';
-import { Camera, Star, X, AlertTriangle, CheckCircle2, Utensils, DollarSign, Car, Sparkles, Send, Plus, Move, Maximize, Check, Trash2, Loader2, ZoomIn } from 'lucide-react';
+import { compressImage } from '../lib/imageUtils';
+import { Camera, Star, X, AlertTriangle, CheckCircle2, Utensils, DollarSign, Car, Sparkles, Send, Plus, Trash2, Loader2, Image as ImageIcon } from 'lucide-react';
 
 interface CreatePostProps {
   onComplete: () => void;
@@ -22,15 +22,8 @@ const CreatePost: React.FC<CreatePostProps> = ({ onComplete }) => {
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   
   // Photo states
-  const [rawImage, setRawImage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,38 +48,18 @@ const CreatePost: React.FC<CreatePostProps> = ({ onComplete }) => {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setRawImage(reader.result as string);
-        setZoom(1);
-        setOffset({ x: 0, y: 0 });
+        setPhotoPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
       setError(null);
     }
   };
 
-  const startDrag = (e: React.MouseEvent | React.TouchEvent) => {
-    setIsDragging(true);
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    setDragStart({ x: clientX - offset.x, y: clientY - offset.y });
-  };
-
-  const onDrag = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDragging) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    setOffset({
-      x: clientX - dragStart.x,
-      y: clientY - dragStart.y
-    });
-  };
-
-  const endDrag = () => setIsDragging(false);
-
   const handleSubmit = async () => {
-    if (!rawImage || !selectedRestaurant) {
+    if (!imageFile || !selectedRestaurant) {
       setError('عکس و رستوران را انتخاب نکردید!');
       return;
     }
@@ -98,25 +71,8 @@ const CreatePost: React.FC<CreatePostProps> = ({ onComplete }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('لطفاً ابتدا وارد حساب کاربری شوید');
 
-      // محاسبه مختصات برش بر اساس آنچه کاربر در قاب می‌بیند
-      const img = imgRef.current!;
-      const container = containerRef.current!;
-      
-      const rect = img.getBoundingClientRect();
-      const contRect = container.getBoundingClientRect();
-      
-      const scaleX = img.naturalWidth / rect.width;
-      const scaleY = img.naturalHeight / rect.height;
-
-      const pixelCrop = {
-        x: (contRect.left - rect.left) * scaleX,
-        y: (contRect.top - rect.top) * scaleY,
-        width: contRect.width * scaleX,
-        height: contRect.height * scaleY
-      };
-
-      const croppedBlob = await getCroppedImg(rawImage, pixelCrop);
-      const compressedBlob = await compressImage(croppedBlob, 150);
+      // فشرده‌سازی عکس اصلی بدون برش (Resize و Compress تا زیر ۱۵۰ کیلوبایت)
+      const compressedBlob = await compressImage(imageFile, 150);
 
       const fileName = `${user.id}/${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage
@@ -245,64 +201,33 @@ const CreatePost: React.FC<CreatePostProps> = ({ onComplete }) => {
           
           <div className="space-y-3">
             <div className="flex justify-between items-center mr-2">
-              <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider">یک عکس از غذا بگیرید:</p>
-              {rawImage && (
-                <button onClick={() => setRawImage(null)} className="text-[9px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-lg flex items-center gap-1">حذف و تغییر <Trash2 size={10}/></button>
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider">عکس غذا:</p>
+              {photoPreview && (
+                <button onClick={() => { setPhotoPreview(null); setImageFile(null); }} className="text-[9px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-lg flex items-center gap-1">حذف و تغییر <Trash2 size={10}/></button>
               )}
             </div>
 
-            {/* Smart Frame UI */}
-            <div className="relative w-full aspect-square bg-gray-100 rounded-[2.5rem] overflow-hidden border-2 border-gray-100 shadow-inner group">
-              {!rawImage ? (
-                <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
+            <div className="relative w-full rounded-[2rem] overflow-hidden border-2 border-gray-100 shadow-inner group bg-gray-50">
+              {!photoPreview ? (
+                <label className="flex flex-col items-center justify-center cursor-pointer py-16">
                   <Camera size={40} className="text-orange-300 mb-4 group-hover:scale-110 transition-transform" />
-                  <p className="text-xs font-black text-gray-500">انتخاب عکس</p>
+                  <p className="text-xs font-black text-gray-500">انتخاب عکس از گالری</p>
                   <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                 </label>
               ) : (
-                <>
-                  <div 
-                    ref={containerRef}
-                    className="absolute inset-0 cursor-move touch-none"
-                    onMouseDown={startDrag}
-                    onMouseMove={onDrag}
-                    onMouseUp={endDrag}
-                    onMouseLeave={endDrag}
-                    onTouchStart={startDrag}
-                    onTouchMove={onDrag}
-                    onTouchEnd={endDrag}
-                  >
-                    <img 
-                      ref={imgRef}
-                      src={rawImage}
-                      draggable={false}
-                      className="max-w-none transition-transform duration-75 ease-out select-none"
-                      style={{
-                        transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
-                        transformOrigin: 'center center'
-                      }}
-                    />
-                  </div>
-                  {/* Visual Guide Overlay */}
-                  <div className="absolute inset-0 border-[20px] border-white/20 pointer-events-none rounded-[2.5rem]"></div>
-                </>
+                <div className="relative">
+                  <img 
+                    src={photoPreview}
+                    className="w-full h-auto max-h-[400px] object-contain rounded-[2rem]"
+                    alt="Preview"
+                  />
+                  <div className="absolute inset-0 border-[8px] border-white/10 pointer-events-none rounded-[2rem]"></div>
+                </div>
               )}
             </div>
-
-            {rawImage && (
-              <div className="bg-orange-50 p-4 rounded-2xl space-y-3 animate-in fade-in">
-                <div className="flex items-center gap-3">
-                  <ZoomIn size={16} className="text-orange-500" />
-                  <input 
-                    type="range" 
-                    min="1" max="3" step="0.01" 
-                    value={zoom} 
-                    onChange={(e) => setZoom(parseFloat(e.target.value))} 
-                    className="flex-1 accent-orange-500"
-                  />
-                </div>
-                <p className="text-[9px] font-bold text-orange-700 text-center">عکس را داخل قاب جابجا کنید تا بهترین کادر بسته شود.</p>
-              </div>
+            
+            {photoPreview && (
+              <p className="text-[9px] font-bold text-orange-400 text-center px-4">عکس شما بدون برش و با حفظ کیفیت برای شکموها نمایش داده می‌شود.</p>
             )}
           </div>
 
@@ -315,8 +240,8 @@ const CreatePost: React.FC<CreatePostProps> = ({ onComplete }) => {
 
           <textarea className="w-full p-5 bg-white border border-gray-200 rounded-[2rem] min-h-[100px] text-sm font-bold outline-none focus:border-orange-300 transition-all" placeholder="توضیحات کوتاه..." value={caption} onChange={(e) => setCaption(e.target.value)} />
           
-          <button onClick={handleSubmit} disabled={loading || !rawImage} className="w-full py-5 bg-orange-600 text-white font-black rounded-[2rem] shadow-xl shadow-orange-100 active:scale-95 disabled:bg-gray-200 transition-all flex items-center justify-center gap-2">
-            {loading ? <Loader2 className="animate-spin" size={20} /> : <><Send size={18} /> اشتراک‌گذاری تجربه</>}
+          <button onClick={handleSubmit} disabled={loading || !photoPreview} className="w-full py-5 bg-orange-600 text-white font-black rounded-[2rem] shadow-xl shadow-orange-100 active:scale-95 disabled:bg-gray-200 transition-all flex items-center justify-center gap-2">
+            {loading ? <Loader2 className="animate-spin" size={20} /> : <><Send size={18} /> اشتراک‌گذاری در پاتوق</>}
           </button>
         </div>
       )}

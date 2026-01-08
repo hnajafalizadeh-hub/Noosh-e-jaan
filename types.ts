@@ -1,4 +1,5 @@
 
+
 export interface Profile {
   id: string;
   username: string;
@@ -42,7 +43,8 @@ export interface MenuItem {
   restaurant_id: string;
   name: string;
   price: number;
-  discount_price?: number;
+  // Fix: Added discount_price to support discounts in the menu
+  discount_price?: number | null;
   category_key: string;
   description?: string;
   image_url?: string;

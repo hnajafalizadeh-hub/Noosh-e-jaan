@@ -35,11 +35,23 @@ const App: React.FC = () => {
   const followingIdsRef = useRef<string[]>([]);
 
   useEffect(() => {
-    // ثبت Service Worker برای iOS PWA
+    // ثبت سرویس‌ورکر با استفاده از آدرس داینامیک بر اساس موقعیت فعلی صفحه
+    // این کار مشکل Origin Mismatch را در محیط‌های Sandbox که دامنه‌های طولانی دارند حل می‌کند
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('SW Registered!', reg))
-        .catch(err => console.log('SW Register Fail:', err));
+      const registerServiceWorker = async () => {
+        try {
+          // ساخت آدرس کامل فایل sw.js بر اساس URL فعلی مرورگر
+          const swUrl = new URL('sw.js', window.location.href).href;
+          const registration = await navigator.serviceWorker.register(swUrl, {
+            scope: './'
+          });
+          console.log('سرویس‌ورکر با موفقیت ثبت شد:', registration.scope);
+        } catch (err) {
+          console.error('خطا در ثبت سرویس‌ورکر:', err);
+        }
+      };
+      
+      registerServiceWorker();
     }
 
     if (isDarkMode) {
@@ -80,44 +92,44 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) return;
-    
-    // در iOS حتماً باید این تابع بر اساس کلیک کاربر اجرا شود
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        console.log('Notification permission granted.');
-        // نمایش یک نوتیفیکیشن تستی برای اطمینان
-        showSystemNotification('خوش آمدید! 🎉', 'اعلان‌های چی بُقولم؟ برای شما فعال شد.');
-      }
-    } catch (e) {
-      console.error('Error requesting notification permission:', e);
+  const subscribeToPush = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('مرورگر شما از سیستم اعلان Push پشتیبانی نمی‌کند.');
+      return;
     }
-  };
 
-  const showSystemNotification = (title: string, body: string, postId?: string) => {
-    if (!('Notification' in window)) return;
-
-    if (Notification.permission === 'granted') {
-      const options = {
-        body: body,
-        icon: '/icon.png',
-        badge: '/icon.png',
-        dir: 'rtl' as 'rtl',
-        vibrate: [200, 100, 200],
-        tag: postId || 'general',
-        renotify: true
-      };
-
-      // در iOS PWA، استفاده از Service Worker برای نمایش نوتیفیکیشن الزامی است
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then(registration => {
-          registration.showNotification(title, options);
-        });
-      } else {
-        new Notification(title, options);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert('لطفاً اجازه دسترسی به اعلان‌ها را صادر کنید.');
+        return;
       }
+
+      // کلید عمومی VAPID (نمونه)
+      const applicationServerKey = 'BEl62vp9IH186M774N4I_41fYf0l05-vA0S4M67A55_Yf55A5_Yf55A5_Yf55A5_Yf55A5_Yf55A5_Yf55A5_Yf55A';
+      
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey
+      });
+
+      if (session?.user?.id) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ push_subscription: subscription.toJSON() })
+          .eq('id', session.user.id);
+        
+        if (!error) {
+          alert('اعلان‌های سیستمی با موفقیت فعال شد! 🎉');
+        } else {
+          throw error;
+        }
+      }
+    } catch (e: any) {
+      console.error('Push Subscription Error:', e);
+      alert('خطا در تنظیم اعلان: ' + e.message);
     }
   };
 
@@ -126,7 +138,6 @@ const App: React.FC = () => {
     checkOwnership(user.id);
     checkInitialNotifications(user.id);
     fetchFollowingList(user.id);
-    setupRealtime(user.id);
   };
 
   const fetchFollowingList = async (userId: string) => {
@@ -148,52 +159,6 @@ const App: React.FC = () => {
 
       if ((likesCount || 0) > 0 || (commentsCount || 0) > 0 || (followCount || 0) > 0) setHasNewActivity(true);
     } catch (e) { console.warn('Notification check failed'); }
-  };
-
-  const setupRealtime = (userId: string) => {
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
-    
-    const channel = supabase
-      .channel(`app-realtime-${userId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, async (payload: any) => {
-        handleRealtimeEvent('like', payload.new.post_id, payload.new.user_id, userId);
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, async (payload: any) => {
-        handleRealtimeEvent('comment', payload.new.post_id, payload.new.user_id, userId);
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'followers' }, async (payload: any) => {
-        if (payload.new.following_id === userId) {
-          const { data: actor } = await supabase.from('profiles').select('full_name').eq('id', payload.new.follower_id).single();
-          setHasNewActivity(true);
-          showSystemNotification('فالوور جدید! 👤', `${actor?.full_name || 'یک نفر'} شما را دنبال کرد.`);
-        }
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, async (payload: any) => {
-        if (followingIdsRef.current.includes(payload.new.user_id)) {
-          const { data: actor } = await supabase.from('profiles').select('full_name').eq('id', payload.new.user_id).single();
-          showSystemNotification('پست جدید شکموها! 🍕', `${actor?.full_name || 'دوست شما'} یک تجربه جدید ثبت کرد.`, payload.new.id);
-        }
-      })
-      .subscribe();
-      
-    channelRef.current = channel;
-  };
-
-  const handleRealtimeEvent = async (type: 'like' | 'comment', postId: string, actorId: string, currentUserId: string) => {
-    if (actorId === currentUserId) return;
-    
-    const { data: post } = await supabase.from('posts').select('user_id, caption').eq('id', postId).single();
-    if (post?.user_id === currentUserId) {
-      const { data: actor } = await supabase.from('profiles').select('full_name').eq('id', actorId).single();
-      setHasNewActivity(true);
-      
-      const title = type === 'like' ? 'لایک جدید ❤️' : 'کامنت جدید 💬';
-      const body = type === 'like' 
-        ? `${actor?.full_name || 'یک نفر'} پست شما را پسندید.` 
-        : `${actor?.full_name || 'یک نفر'} برای شما نظر گذاشت.`;
-      
-      showSystemNotification(title, body, postId);
-    }
   };
 
   const ensureProfileExists = async (user: any) => {
@@ -243,47 +208,19 @@ const App: React.FC = () => {
         >
           <div className="flex items-center gap-2">
             {dbError.type === 'API_KEY' ? <Key size={14} /> : <Database size={14} />}
-            <span>{dbError.type === 'API_KEY' ? 'خطای کلید امنیتی: API Key منقضی یا اشتباه است' : 'جداول دیتابیس تنظیم نیستند'}</span>
+            <span>{dbError.type === 'API_KEY' ? 'خطای کلید امنیتی' : 'جداول دیتابیس تنظیم نیستند'}</span>
           </div>
-          <span className="opacity-70 text-[8px]">برای راهنمای رفع خطا کلیک کنید</span>
         </div>
       )}
 
-      {showSqlGuide && (
-        <div className="fixed inset-0 bg-black/80 z-[100] p-6 flex items-center justify-center overflow-y-auto">
-          <div className="bg-white dark:bg-dark-card rounded-3xl w-full max-sm p-6 space-y-4">
-             <div className="flex justify-between items-center">
-                <h3 className="font-black text-gray-900 dark:text-gray-100">راهنمای رفع خطا</h3>
-                <button onClick={() => setShowSqlGuide(false)} className="text-gray-400 p-2"><X size={24}/></button>
-             </div>
-             <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 leading-relaxed">
-               خطاهای ۴۰۰ به دلیل نبود جداول در Supabase است.
-             </p>
-             <button 
-               onClick={() => setShowSqlGuide(false)}
-               className="w-full py-3 bg-gray-900 dark:bg-orange-600 text-white rounded-xl font-black text-xs shadow-xl"
-             >
-               متوجه شدم
-             </button>
-          </div>
-        </div>
-      )}
-      
-      <header className="bg-white dark:bg-dark-card border-b border-gray-100 dark:border-dark-border px-5 py-4 flex justify-between items-center sticky top-0 z-10 transition-colors">
-        <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => setView('feed')}>
-          <div className="bg-orange-500 p-1.5 rounded-xl group-active:scale-90 transition-transform">
+      <header className="bg-white dark:bg-dark-card border-b border-gray-100 dark:border-dark-border px-5 py-4 flex justify-between items-center sticky top-0 z-10">
+        <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setView('feed')}>
+          <div className="bg-orange-500 p-1.5 rounded-xl">
              <Pizza className="text-white" size={20} />
           </div>
           <h1 className="text-xl font-black text-gray-900 dark:text-gray-100 tracking-tight">چی بُقولم؟</h1>
         </div>
-        <div className="flex items-center gap-2">
-          {profile?.is_admin && (
-            <button onClick={() => setView('admin')} className={`p-2 rounded-xl transition-all ${view === 'admin' ? 'bg-red-50 text-red-600' : 'text-gray-400 hover:text-red-500'}`}>
-              <ShieldAlert size={22} />
-            </button>
-          )}
-          <button onClick={() => supabase.auth.signOut()} className="text-gray-400 p-2 hover:text-red-500 transition-colors"><LogOut size={20} /></button>
-        </div>
+        <button onClick={() => supabase.auth.signOut()} className="text-gray-400 p-2"><LogOut size={20} /></button>
       </header>
 
       <main className="flex-1 overflow-y-auto pb-24">
@@ -296,7 +233,7 @@ const App: React.FC = () => {
             profile={profile} 
             hasUnread={hasNewActivity} 
             onMarkAsRead={() => { markAsRead(); }} 
-            onRequestNotification={requestNotificationPermission}
+            onRequestNotification={subscribeToPush}
             onPostClick={(id) => { setPrevView(view); setSelectedPostId(id); setView('post_detail'); }} 
             onUserClick={(uid) => { setSelectedUserId(uid); setView('user_profile'); }} 
             onOpenAdmin={() => setView('admin')}
@@ -310,7 +247,7 @@ const App: React.FC = () => {
         {view === 'post_detail' && selectedPostId && <PostDetail postId={selectedPostId} onBack={() => setView(prevView)} />}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-dark-card border-t border-gray-100 dark:border-dark-border px-2 py-2 flex justify-around items-center z-10 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] transition-colors">
+      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-dark-card border-t border-gray-100 dark:border-dark-border px-2 py-2 flex justify-around items-center z-10 shadow-lg">
         <button onClick={() => setView('feed')} className={`flex flex-col items-center gap-1 min-w-[64px] ${view === 'feed' ? 'text-orange-500' : 'text-gray-400'}`}>
           <Home size={24} />
           <span className="text-[10px] font-bold">خانه</span>

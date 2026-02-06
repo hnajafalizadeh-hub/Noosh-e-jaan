@@ -134,7 +134,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-orange-500 rounded-3xl mb-4 shadow-xl shadow-orange-200 rotate-3">
             <Pizza className="text-white" size={40} />
           </div>
-          <h2 className="text-3xl font-black text-gray-900 tracking-tight">چی بقولم؟</h2>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">چی بُقولم؟</h2>
           <p className="text-xs text-orange-600 mt-2 font-black italic">پایانِ بحرانِ «حالا چی بخوریم؟»</p>
         </div>
 

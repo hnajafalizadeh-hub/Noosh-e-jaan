@@ -17,6 +17,7 @@ interface ProfileViewProps {
   onUserClick?: (userId: string) => void;
   hasUnread?: boolean;
   onMarkAsRead?: () => void;
+  onRequestNotification?: () => void;
   onBack?: () => void;
   onOpenAdmin?: () => void;
   isDarkMode?: boolean;
@@ -30,6 +31,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
   onUserClick, 
   hasUnread, 
   onMarkAsRead, 
+  onRequestNotification,
   onBack, 
   onOpenAdmin,
   isDarkMode,
@@ -301,6 +303,15 @@ const ProfileView: React.FC<ProfileViewProps> = ({
           {profile.is_admin && <span className="px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-[8px] font-black rounded-lg border border-red-100 dark:border-red-500/20">مدیریت</span>}
         </div>
 
+        {isOwnProfile && (
+           <button 
+             onClick={onRequestNotification}
+             className="mt-4 w-full py-3 bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-2xl text-[10px] font-black border border-orange-200 dark:border-orange-800/30 flex items-center justify-center gap-2 active:scale-95 transition-all"
+           >
+             <Bell size={16} /> فعال‌سازی اعلان‌ها (ویژه آیفون)
+           </button>
+        )}
+
         <div className="flex gap-4 mt-6 bg-white dark:bg-dark-card p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-dark-border text-center transition-colors">
           <div className="flex-1">
             <p className="text-lg font-black text-gray-900 dark:text-white">{posts.length}</p>
@@ -533,7 +544,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
               )}
 
               <div className="text-center pb-4">
-                 <p className="text-[10px] font-bold text-gray-300 dark:text-gray-600">نسخه ۱.۴.۰ - چی بقولم؟</p>
+                 <p className="text-[10px] font-bold text-gray-300 dark:text-gray-600">نسخه ۱.۴.۰ - چی بُقولم؟</p>
               </div>
            </div>
         </div>

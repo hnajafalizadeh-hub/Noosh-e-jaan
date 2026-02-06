@@ -1,4 +1,5 @@
 
+import { GoogleGenAI } from "@google/genai";
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase, checkConnection } from './lib/supabase';
 import { Profile, ViewState, RestaurantOwner, Restaurant } from './types';
@@ -11,7 +12,7 @@ import RestaurantDashboard from './components/RestaurantDashboard';
 import AdminPanel from './components/AdminPanel';
 import RestaurantDetail from './components/RestaurantDetail';
 import PostDetail from './components/PostDetail';
-import { Home, User, PlusCircle, LogOut, Utensils, MapPin, LayoutDashboard, ShieldAlert, Database, Key, X, Pizza, Plus } from 'lucide-react';
+import { Home, User, PlusCircle, LogOut, Utensils, MapPin, LayoutDashboard, ShieldAlert, Database, Key, X, Pizza, Plus, Bell } from 'lucide-react';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -26,15 +27,21 @@ const App: React.FC = () => {
   const [dbError, setDbError] = useState<{type: string, msg: string} | null>(null);
   const [showSqlGuide, setShowSqlGuide] = useState(false);
   
-  // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
   });
 
   const channelRef = useRef<any>(null);
+  const followingIdsRef = useRef<string[]>([]);
 
   useEffect(() => {
-    // Apply theme class
+    // ثبت Service Worker برای iOS PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('SW Registered!', reg))
+        .catch(err => console.log('SW Register Fail:', err));
+    }
+
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -73,48 +80,107 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        console.log('Notification permission granted.');
+      }
+    }
+  };
+
+  const showSystemNotification = (title: string, body: string, postId?: string) => {
+    // در iOS PWA اگر برنامه در پس‌زمینه باشد، Service Worker نوتیفیکیشن را نشان می‌دهد.
+    // اما برای حالت فعال بودن برنامه:
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const options = {
+        body: body,
+        icon: '/icon.png',
+        badge: '/icon.png',
+        dir: 'rtl' as 'rtl'
+      };
+
+      // استفاده از Service Worker برای نمایش (بهتر برای iOS)
+      navigator.serviceWorker.ready.then(registration => {
+        registration.showNotification(title, options);
+      });
+    }
+  };
+
   const handleUserLogin = async (user: any) => {
     await ensureProfileExists(user);
+    // برای iOS حتماً باید بعد از یک تعامل کاربر صدا زده شود، اما اینجا هم تست می‌کنیم
+    requestNotificationPermission(); 
     checkOwnership(user.id);
     checkInitialNotifications(user.id);
+    fetchFollowingList(user.id);
     setupRealtime(user.id);
+  };
+
+  const fetchFollowingList = async (userId: string) => {
+    const { data } = await supabase.from('followers').select('following_id').eq('follower_id', userId);
+    if (data) followingIdsRef.current = data.map(f => f.following_id);
   };
 
   const checkInitialNotifications = async (userId: string) => {
     try {
       const lastChecked = localStorage.getItem(`notif_last_seen_${userId}`) || new Date(0).toISOString();
       const { data: userPosts } = await supabase.from('posts').select('id').eq('user_id', userId);
-      if (!userPosts || userPosts.length === 0) return;
-      const postIds = userPosts.map(p => p.id);
+      const postIds = userPosts?.map(p => p.id) || [];
 
-      const [{ count: likesCount }, { count: commentsCount }] = await Promise.all([
+      const [{ count: likesCount }, { count: commentsCount }, { count: followCount }] = await Promise.all([
         supabase.from('likes').select('*', { count: 'exact', head: true }).in('post_id', postIds).neq('user_id', userId).gt('created_at', lastChecked),
-        supabase.from('comments').select('*', { count: 'exact', head: true }).in('post_id', postIds).neq('user_id', userId).gt('created_at', lastChecked)
+        supabase.from('comments').select('*', { count: 'exact', head: true }).in('post_id', postIds).neq('user_id', userId).gt('created_at', lastChecked),
+        supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', userId).gt('created_at', lastChecked)
       ]);
 
-      if ((likesCount || 0) > 0 || (commentsCount || 0) > 0) setHasNewActivity(true);
+      if ((likesCount || 0) > 0 || (commentsCount || 0) > 0 || (followCount || 0) > 0) setHasNewActivity(true);
     } catch (e) { console.warn('Notification check failed'); }
   };
 
   const setupRealtime = (userId: string) => {
     if (channelRef.current) supabase.removeChannel(channelRef.current);
+    
     const channel = supabase
-      .channel(`realtime-notifs-${userId}`)
+      .channel(`app-realtime-${userId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, async (payload: any) => {
-        handleRealtimeEvent(payload.new.post_id, payload.new.user_id, userId);
+        handleRealtimeEvent('like', payload.new.post_id, payload.new.user_id, userId);
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, async (payload: any) => {
-        handleRealtimeEvent(payload.new.post_id, payload.new.user_id, userId);
+        handleRealtimeEvent('comment', payload.new.post_id, payload.new.user_id, userId);
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'followers' }, async (payload: any) => {
+        if (payload.new.following_id === userId) {
+          const { data: actor } = await supabase.from('profiles').select('full_name').eq('id', payload.new.follower_id).single();
+          setHasNewActivity(true);
+          showSystemNotification('فالوور جدید! 👤', `${actor?.full_name || 'یک نفر'} شما را دنبال کرد.`);
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, async (payload: any) => {
+        if (followingIdsRef.current.includes(payload.new.user_id)) {
+          const { data: actor } = await supabase.from('profiles').select('full_name').eq('id', payload.new.user_id).single();
+          showSystemNotification('پست جدید شکموها! 🍕', `${actor?.full_name || 'دوست شما'} یک تجربه جدید ثبت کرد.`, payload.new.id);
+        }
       })
       .subscribe();
+      
     channelRef.current = channel;
   };
 
-  const handleRealtimeEvent = async (postId: string, actorId: string, currentUserId: string) => {
+  const handleRealtimeEvent = async (type: 'like' | 'comment', postId: string, actorId: string, currentUserId: string) => {
     if (actorId === currentUserId) return;
-    const { data: post } = await supabase.from('posts').select('user_id').eq('id', postId).single();
+    
+    const { data: post } = await supabase.from('posts').select('user_id, caption').eq('id', postId).single();
     if (post?.user_id === currentUserId) {
+      const { data: actor } = await supabase.from('profiles').select('full_name').eq('id', actorId).single();
       setHasNewActivity(true);
+      
+      const title = type === 'like' ? 'لایک جدید ❤️' : 'کامنت جدید 💬';
+      const body = type === 'like' 
+        ? `${actor?.full_name || 'یک نفر'} پست شما را پسندید.` 
+        : `${actor?.full_name || 'یک نفر'} برای شما نظر گذاشت.`;
+      
+      showSystemNotification(title, body, postId);
     }
   };
 
@@ -173,24 +239,14 @@ const App: React.FC = () => {
 
       {showSqlGuide && (
         <div className="fixed inset-0 bg-black/80 z-[100] p-6 flex items-center justify-center overflow-y-auto">
-          <div className="bg-white dark:bg-dark-card rounded-3xl w-full max-w-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-dark-card rounded-3xl w-full max-sm p-6 space-y-4">
              <div className="flex justify-between items-center">
                 <h3 className="font-black text-gray-900 dark:text-gray-100">راهنمای رفع خطا</h3>
                 <button onClick={() => setShowSqlGuide(false)} className="text-gray-400 p-2"><X size={24}/></button>
              </div>
-             
-             {dbError?.type === 'API_KEY' ? (
-               <div className="space-y-3">
-                 <p className="text-[11px] font-bold text-red-600 leading-relaxed">
-                   کلید پروژه شما در Supabase نامعتبر است.
-                 </p>
-               </div>
-             ) : (
-               <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 leading-relaxed">
-                 خطاهای ۴۰۰ به دلیل نبود جداول در Supabase است.
-               </p>
-             )}
-
+             <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 leading-relaxed">
+               خطاهای ۴۰۰ به دلیل نبود جداول در Supabase است.
+             </p>
              <button 
                onClick={() => setShowSqlGuide(false)}
                className="w-full py-3 bg-gray-900 dark:bg-orange-600 text-white rounded-xl font-black text-xs shadow-xl"
@@ -227,7 +283,7 @@ const App: React.FC = () => {
           <ProfileView 
             profile={profile} 
             hasUnread={hasNewActivity} 
-            onMarkAsRead={markAsRead} 
+            onMarkAsRead={() => { markAsRead(); requestNotificationPermission(); }} 
             onPostClick={(id) => { setPrevView(view); setSelectedPostId(id); setView('post_detail'); }} 
             onUserClick={(uid) => { setSelectedUserId(uid); setView('user_profile'); }} 
             onOpenAdmin={() => setView('admin')}

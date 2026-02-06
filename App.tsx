@@ -81,36 +81,48 @@ const App: React.FC = () => {
   }, []);
 
   const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
+    if (!('Notification' in window)) return;
+    
+    // در iOS حتماً باید این تابع بر اساس کلیک کاربر اجرا شود
+    try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         console.log('Notification permission granted.');
+        // نمایش یک نوتیفیکیشن تستی برای اطمینان
+        showSystemNotification('خوش آمدید! 🎉', 'اعلان‌های چی بُقولم؟ برای شما فعال شد.');
       }
+    } catch (e) {
+      console.error('Error requesting notification permission:', e);
     }
   };
 
   const showSystemNotification = (title: string, body: string, postId?: string) => {
-    // در iOS PWA اگر برنامه در پس‌زمینه باشد، Service Worker نوتیفیکیشن را نشان می‌دهد.
-    // اما برای حالت فعال بودن برنامه:
-    if ('Notification' in window && Notification.permission === 'granted') {
+    if (!('Notification' in window)) return;
+
+    if (Notification.permission === 'granted') {
       const options = {
         body: body,
         icon: '/icon.png',
         badge: '/icon.png',
-        dir: 'rtl' as 'rtl'
+        dir: 'rtl' as 'rtl',
+        vibrate: [200, 100, 200],
+        tag: postId || 'general',
+        renotify: true
       };
 
-      // استفاده از Service Worker برای نمایش (بهتر برای iOS)
-      navigator.serviceWorker.ready.then(registration => {
-        registration.showNotification(title, options);
-      });
+      // در iOS PWA، استفاده از Service Worker برای نمایش نوتیفیکیشن الزامی است
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(registration => {
+          registration.showNotification(title, options);
+        });
+      } else {
+        new Notification(title, options);
+      }
     }
   };
 
   const handleUserLogin = async (user: any) => {
     await ensureProfileExists(user);
-    // برای iOS حتماً باید بعد از یک تعامل کاربر صدا زده شود، اما اینجا هم تست می‌کنیم
-    requestNotificationPermission(); 
     checkOwnership(user.id);
     checkInitialNotifications(user.id);
     fetchFollowingList(user.id);
@@ -262,7 +274,7 @@ const App: React.FC = () => {
           <div className="bg-orange-500 p-1.5 rounded-xl group-active:scale-90 transition-transform">
              <Pizza className="text-white" size={20} />
           </div>
-          <h1 className="text-xl font-black text-gray-900 dark:text-gray-100 tracking-tight">چی بقولم؟</h1>
+          <h1 className="text-xl font-black text-gray-900 dark:text-gray-100 tracking-tight">چی بُقولم؟</h1>
         </div>
         <div className="flex items-center gap-2">
           {profile?.is_admin && (
@@ -283,7 +295,8 @@ const App: React.FC = () => {
           <ProfileView 
             profile={profile} 
             hasUnread={hasNewActivity} 
-            onMarkAsRead={() => { markAsRead(); requestNotificationPermission(); }} 
+            onMarkAsRead={() => { markAsRead(); }} 
+            onRequestNotification={requestNotificationPermission}
             onPostClick={(id) => { setPrevView(view); setSelectedPostId(id); setView('post_detail'); }} 
             onUserClick={(uid) => { setSelectedUserId(uid); setView('user_profile'); }} 
             onOpenAdmin={() => setView('admin')}

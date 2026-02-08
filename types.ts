@@ -1,5 +1,4 @@
 
-
 export interface Profile {
   id: string;
   username: string;
@@ -43,7 +42,6 @@ export interface MenuItem {
   restaurant_id: string;
   name: string;
   price: number;
-  // Fix: Added discount_price to support discounts in the menu
   discount_price?: number | null;
   category_key: string;
   description?: string;
@@ -71,7 +69,8 @@ export interface Post {
   id: string;
   user_id: string;
   restaurant_id: string;
-  photo_url: string;
+  photo_url: string; // Will now store JSON array or first image
+  photo_urls?: string[]; // New field for multiple images (JSON in DB)
   caption: string;
   rating: number;
   rating_food: number;
@@ -96,4 +95,4 @@ export interface Activity {
   is_read: boolean;
 }
 
-export type ViewState = 'feed' | 'profile' | 'create' | 'auth' | 'near_me' | 'dashboard' | 'admin' | 'restaurant_detail' | 'post_detail' | 'user_profile';
+export type ViewState = 'feed' | 'profile' | 'create' | 'auth' | 'near_me' | 'dashboard' | 'admin' | 'restaurant_detail' | 'post_detail' | 'user_profile' | 'edit_post';

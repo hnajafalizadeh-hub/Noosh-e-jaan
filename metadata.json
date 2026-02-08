@@ -1,21 +1,21 @@
 {
-  "name": "چی بُقولم؟5",
+  "name": "Copy of چی بُقولم؟6",
   "short_name": "چی بُقولم؟",
   "description": "اولین شبکه اجتماعی تخصصی برای شکموهای ایران؛ راهنمای نهایی برای پاسخ به سوال «حالا چی بخوریم؟»",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f9fafb",
   "theme_color": "#f97316",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "/icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon.png",
+      "src": "/icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

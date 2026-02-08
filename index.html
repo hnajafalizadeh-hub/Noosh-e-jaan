@@ -21,8 +21,10 @@
     
     <!-- Favicon and Icons -->
     <link rel="icon" type="image/png" href="icon.png">
-    <link rel="apple-mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="icon.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icon.png">
     
     <!-- Manifest Link -->
     <link rel="manifest" href="metadata.json">
@@ -85,8 +87,7 @@
     "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.39.0"
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0"
   }
 }
 </script>
@@ -95,6 +96,7 @@
 </head>
 <body class="safe-top safe-bottom">
     <div id="root"></div>
+    <!-- استفاده از مسیر مطلق برای اطمینان از لود شدن در حالت PWA -->
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>

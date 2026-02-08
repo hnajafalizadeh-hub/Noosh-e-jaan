@@ -2,13 +2,18 @@
 /**
  * فشرده‌سازی عکس با حفظ کیفیت نسبی
  */
-export const compressImage = async (file: File | Blob, maxKB: number = 150): Promise<Blob> => {
-  return new Promise((resolve, reject) => {
+export const compressImage = (file: File | Blob, maxKB: number = 150): Promise<Blob> => {
+  return new Promise<Blob>((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
       const img = new Image();
-      img.src = event.target?.result as string;
+      const result = event.target?.result;
+      if (!result) {
+        reject(new Error('Failed to read file'));
+        return;
+      }
+      img.src = result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let width = img.width;
@@ -34,6 +39,8 @@ export const compressImage = async (file: File | Blob, maxKB: number = 150): Pro
                 } else {
                   attemptCompression(q - 0.1);
                 }
+              } else {
+                reject(new Error('Compression failed'));
               }
             },
             'image/jpeg',
@@ -42,6 +49,7 @@ export const compressImage = async (file: File | Blob, maxKB: number = 150): Pro
         };
         attemptCompression(0.8);
       };
+      img.onerror = () => reject(new Error('Image load failed'));
     };
     reader.onerror = (e) => reject(e);
   });
@@ -55,7 +63,7 @@ export const getCroppedImg = (
   pixelCrop: { x: number; y: number; width: number; height: number },
   targetSize: number = 1080
 ): Promise<Blob> => {
-  return new Promise((resolve, reject) => {
+  return new Promise<Blob>((resolve, reject) => {
     const image = new Image();
     image.src = imageSrc;
     image.onload = () => {

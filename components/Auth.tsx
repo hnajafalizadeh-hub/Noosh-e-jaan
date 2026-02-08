@@ -7,11 +7,12 @@ interface AuthProps {
   onAuthSuccess: () => void;
 }
 
-const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
+// Fixed: Explicitly declared as a functional component with default export to avoid module resolution issues
+export default function Auth({ onAuthSuccess }: AuthProps) {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [identifier, setIdentifier] = useState(''); // فیلد مشترک برای ایمیل یا شماره در زمان ورود
-  const [email, setEmail] = useState(''); // فقط برای ثبت‌نام
+  const [identifier, setIdentifier] = useState(''); 
+  const [email, setEmail] = useState(''); 
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
@@ -31,7 +32,6 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
   }, []);
 
   const validatePassword = (pass: string) => {
-    // حداقل ۸ کاراکتر، شامل حروف و اعداد انگلیسی
     const regex = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
     return regex.test(pass);
   };
@@ -50,7 +50,6 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
 
     try {
       if (isSignUp) {
-        // ۱. بررسی تکراری نبودن شماره همراه قبل از ثبت‌نام
         const { data: phoneCheck } = await supabase.from('profiles').select('id').eq('phone', phone).maybeSingle();
         if (phoneCheck) throw new Error('این شماره همراه قبلاً توسط شخص دیگری ثبت شده است.');
 
@@ -68,14 +67,13 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
         
         if (signUpError) throw signUpError;
         
-        // ایجاد پروفایل دستی برای اطمینان از ذخیره ایمیل و شماره (برای لاگین‌های بعدی)
         if (data.user) {
           await supabase.from('profiles').upsert({
             id: data.user.id,
             username: username.toLowerCase(),
             full_name: fullName,
             phone: phone,
-            email: email, // ذخیره برای لاگین با شماره
+            email: email, 
             is_admin: false
           });
         }
@@ -87,10 +85,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
           setIsSignUp(false);
         }
       } else {
-        // منطق ورود با ایمیل یا شماره همراه
         let loginEmail = identifier;
-
-        // اگر ورودی شبیه شماره موبایل است (فقط عدد)
         if (/^\d+$/.test(identifier)) {
           const { data: profile, error: profileErr } = await supabase
             .from('profiles')
@@ -278,6 +273,4 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
       </div>
     </div>
   );
-};
-
-export default Auth;
+}

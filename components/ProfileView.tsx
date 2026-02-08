@@ -7,7 +7,7 @@ import {
   Settings, Grid, Camera, Image as ImageIcon, Loader2, Bell, Heart, 
   MessageCircle, User, Search, UserPlus, UserMinus, ArrowRight, 
   UserCheck, ShieldAlert, Moon, Sun, X, ChevronLeft, LogOut,
-  Edit2, Save, Smartphone, CheckCircle2, AlertCircle
+  Edit2, Save, Smartphone, CheckCircle2, AlertCircle, Users
 } from 'lucide-react';
 
 interface ProfileViewProps {
@@ -17,7 +17,6 @@ interface ProfileViewProps {
   onUserClick?: (userId: string) => void;
   hasUnread?: boolean;
   onMarkAsRead?: () => void;
-  onRequestNotification?: () => void;
   onBack?: () => void;
   onOpenAdmin?: () => void;
   isDarkMode?: boolean;
@@ -31,7 +30,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({
   onUserClick, 
   hasUnread, 
   onMarkAsRead, 
-  onRequestNotification,
   onBack, 
   onOpenAdmin,
   isDarkMode,
@@ -50,6 +48,11 @@ const ProfileView: React.FC<ProfileViewProps> = ({
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+
+  // Follower/Following List States
+  const [showFollowList, setShowFollowList] = useState<'followers' | 'following' | null>(null);
+  const [followListData, setFollowListData] = useState<Profile[]>([]);
+  const [listLoading, setListLoading] = useState(false);
 
   // Edit States
   const [editFullName, setEditFullName] = useState('');
@@ -141,6 +144,31 @@ const ProfileView: React.FC<ProfileViewProps> = ({
         setEditPhone(profile?.phone || '');
       }
     } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  const fetchFollowList = async (type: 'followers' | 'following') => {
+    if (!profile) return;
+    setListLoading(true);
+    setShowFollowList(type);
+    try {
+      if (type === 'followers') {
+        const { data } = await supabase
+          .from('followers')
+          .select('follower_id, profiles:follower_id(*)')
+          .eq('following_id', profile.id);
+        setFollowListData(data?.map(d => d.profiles as any) || []);
+      } else {
+        const { data } = await supabase
+          .from('followers')
+          .select('following_id, profiles:following_id(*)')
+          .eq('follower_id', profile.id);
+        setFollowListData(data?.map(d => d.profiles as any) || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setListLoading(false);
+    }
   };
 
   const handleFollow = async () => {
@@ -303,28 +331,19 @@ const ProfileView: React.FC<ProfileViewProps> = ({
           {profile.is_admin && <span className="px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-[8px] font-black rounded-lg border border-red-100 dark:border-red-500/20">مدیریت</span>}
         </div>
 
-        {isOwnProfile && (
-           <button 
-             onClick={onRequestNotification}
-             className="mt-4 w-full py-3 bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-2xl text-[10px] font-black border border-orange-200 dark:border-orange-800/30 flex items-center justify-center gap-2 active:scale-95 transition-all"
-           >
-             <Bell size={16} /> فعال‌سازی اعلان‌ها (ویژه آیفون)
-           </button>
-        )}
-
         <div className="flex gap-4 mt-6 bg-white dark:bg-dark-card p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-dark-border text-center transition-colors">
           <div className="flex-1">
             <p className="text-lg font-black text-gray-900 dark:text-white">{posts.length}</p>
             <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">تجربه</p>
           </div>
-          <div className="flex-1">
+          <button onClick={() => fetchFollowList('followers')} className="flex-1 active:scale-95 transition-transform">
             <p className="text-lg font-black text-gray-900 dark:text-white">{followerCount}</p>
             <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">دنبال‌کننده</p>
-          </div>
-          <div className="flex-1">
+          </button>
+          <button onClick={() => fetchFollowList('following')} className="flex-1 active:scale-95 transition-transform">
             <p className="text-lg font-black text-gray-900 dark:text-white">{followingCount}</p>
             <p className="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">دنبال‌شونده</p>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -420,6 +439,47 @@ const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Followers/Following List Modal */}
+      {showFollowList && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex flex-col justify-end">
+          <div className="bg-white dark:bg-dark-card rounded-t-[3rem] w-full max-w-md mx-auto p-8 space-y-6 animate-in slide-in-from-bottom-full duration-300">
+            <div className="flex justify-between items-center">
+              <h3 className="font-black text-xl text-gray-900 dark:text-white">
+                {showFollowList === 'followers' ? 'دنبال‌کنندگان' : 'دنبال‌شوندگان'}
+              </h3>
+              <button onClick={() => setShowFollowList(null)} className="p-2 bg-gray-50 dark:bg-dark-bg rounded-2xl text-gray-400 dark:text-gray-300 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="max-h-[60vh] overflow-y-auto space-y-3 custom-scroll">
+              {listLoading ? (
+                <div className="py-10 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>
+              ) : followListData.length === 0 ? (
+                <div className="py-10 text-center text-xs font-bold text-gray-400 italic">لیست خالی است.</div>
+              ) : (
+                followListData.map(u => (
+                  <button 
+                    key={u.id} 
+                    onClick={() => { onUserClick?.(u.id); setShowFollowList(null); }}
+                    className="w-full flex items-center gap-4 p-4 bg-gray-50 dark:bg-dark-bg rounded-[1.8rem] border border-gray-100 dark:border-dark-border active:scale-95 transition-all text-right group"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-orange-100 dark:bg-dark-card flex items-center justify-center overflow-hidden shrink-0 border border-white dark:border-dark-border">
+                      {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-orange-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-gray-900 dark:text-white group-hover:text-orange-500 transition-colors">{u.full_name}</p>
+                      <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500">@{u.username}</p>
+                    </div>
+                    <ChevronLeft size={18} className="text-gray-300" />
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settings Modal */}
       {showSettings && (
@@ -544,7 +604,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
               )}
 
               <div className="text-center pb-4">
-                 <p className="text-[10px] font-bold text-gray-300 dark:text-gray-600">نسخه ۱.۴.۰ - چی بُقولم؟</p>
+                 <p className="text-[10px] font-bold text-gray-300 dark:text-gray-600">نسخه ۱.۴.۰ - چی بقولم؟</p>
               </div>
            </div>
         </div>

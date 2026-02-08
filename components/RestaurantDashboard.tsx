@@ -40,7 +40,7 @@ const CATEGORIES: MenuCategoryDef[] = [
   { key: 'burger', title_fa: 'همبرگر', icon_name: 'ChefHat' },
   { key: 'fried', title_fa: 'سوخاری', icon_name: 'Drumstick' },
   { key: 'drink', title_fa: 'نوشیدنی', icon_name: 'GlassWater' },
-  { key: 'dessert', title_fa: 'دسر', icon_name: 'CakeSlice' },
+  { key: 'appetizer', title_fa: 'پیش غذا', icon_name: 'CakeSlice' },
   { key: 'other', title_fa: 'سایر', icon_name: 'Utensils' },
 ];
 
@@ -81,7 +81,6 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
   
   const [regName, setRegName] = useState('');
   
-  // Deletion States
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
 
@@ -236,12 +235,9 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
     setSaving(true);
     try {
       let imageUrl = itemImagePreview || null;
-      
-      // If a new file is selected, upload it
       if (itemImageFile) {
         imageUrl = await handleFileUpload(itemImageFile, 'menu-item', 'post-photos');
       }
-
       const payload: any = {
         restaurant_id: ownerRecord.restaurant_id,
         name: itemName.trim(),
@@ -251,21 +247,14 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
         description: itemDescription.trim(),
         image_url: imageUrl
       };
-      
       const { error } = editItemId 
         ? await supabase.from('menu_items').update(payload).eq('id', editItemId)
         : await supabase.from('menu_items').insert([payload]);
-      
       if (error) throw error;
-      
       showStatus(editItemId ? 'غذا ویرایش شد' : 'غذا به منو اضافه شد');
       resetForm();
       fetchData();
-    } catch (e: any) { 
-      showStatus(e.message, 'error'); 
-    } finally { 
-      setSaving(false); 
-    }
+    } catch (e: any) { showStatus(e.message, 'error'); } finally { setSaving(false); }
   };
 
   const handleItemImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -424,8 +413,6 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
                 </button>
               </div>
             </div>
-
-            {/* Clear All Confirmation UI */}
             {showClearAllConfirm && (
               <div className="bg-red-50 p-6 rounded-[2.5rem] border-2 border-red-200 space-y-4 animate-in zoom-in-95">
                 <p className="text-xs font-black text-red-700 text-center">آیا مطمئن هستید که می‌خواهید تمام منو را پاک کنید؟ این عمل غیرقابل بازگشت است.</p>
@@ -435,12 +422,9 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
                 </div>
               </div>
             )}
-
             {showAddForm && (
               <div className="bg-white p-6 rounded-[2.5rem] border-2 border-orange-500 space-y-4 shadow-xl animate-in zoom-in-95">
                 <div className="flex justify-between items-center"><span className="font-black text-orange-600">اطلاعات غذا</span><button onClick={resetForm}><X size={20}/></button></div>
-                
-                {/* Image Upload Area for Menu Item */}
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 mr-2">تصویر غذا:</label>
                   <div className="relative group aspect-video bg-gray-50 rounded-2xl overflow-hidden border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer">
@@ -460,7 +444,6 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
                     )}
                   </div>
                 </div>
-
                 <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 mr-2">نام غذا:</label><input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" placeholder="نام غذا" value={itemName} onChange={e => setItemName(e.target.value)} /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 mr-2">قیمت اصلی:</label><input className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-bold" placeholder="تومان" type="number" value={itemPrice} onChange={e => setItemPrice(e.target.value)} /></div>
@@ -478,7 +461,6 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
                 </button>
               </div>
             )}
-
             <div className="space-y-6">
               {CATEGORIES.map(cat => {
                 const items = menuItems.filter(i => i.category_key === cat.key);
@@ -492,11 +474,7 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
                         <div key={item.id} className="bg-white p-4 rounded-[2rem] border border-gray-100 flex justify-between items-center shadow-sm relative overflow-hidden group">
                           <div className="flex gap-4 items-center">
                             <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
-                              {item.image_url ? (
-                                <img src={item.image_url} className="w-full h-full object-cover" />
-                              ) : (
-                                <Utensils size={20} className="text-gray-200" />
-                              )}
+                              {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <Utensils size={20} className="text-gray-200" />}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-black text-gray-900 truncate">{item.name}</p>
@@ -510,27 +488,15 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
                               )}
                             </div>
                           </div>
-                          
                           <div className="flex gap-2">
-                            <button onClick={() => { setEditItemId(item.id); setItemName(item.name); setItemPrice(item.price.toString()); setItemDiscountPrice(item.discount_price?.toString() || ''); setItemCategory(item.category_key); setItemDescription(item.description || ''); setItemImagePreview(item.image_url || null); setShowAddForm(true); }} className="p-3 bg-blue-50 text-blue-500 rounded-2xl active:scale-90 transition-all">
-                               <Edit3 size={18}/>
-                            </button>
-                            <button 
-                              onClick={() => setItemToDelete(item.id)}
-                              className="p-3 bg-red-50 text-red-500 rounded-2xl active:scale-90 transition-all"
-                            >
-                               <Trash2 size={18}/>
-                            </button>
+                            <button onClick={() => { setEditItemId(item.id); setItemName(item.name); setItemPrice(item.price.toString()); setItemDiscountPrice(item.discount_price?.toString() || ''); setItemCategory(item.category_key); setItemDescription(item.description || ''); setItemImagePreview(item.image_url || null); setShowAddForm(true); }} className="p-3 bg-blue-50 text-blue-500 rounded-2xl active:scale-90 transition-all"><Edit3 size={18}/></button>
+                            <button onClick={() => setItemToDelete(item.id)} className="p-3 bg-red-50 text-red-500 rounded-2xl active:scale-90 transition-all"><Trash2 size={18}/></button>
                           </div>
-
-                          {/* Individual Deletion Overlay */}
                           {itemToDelete === item.id && (
                              <div className="absolute inset-0 bg-red-600 flex items-center justify-around px-4 animate-in slide-in-from-right-full">
                                 <span className="text-white text-[10px] font-black">حذف شود؟</span>
                                 <div className="flex gap-2">
-                                   <button onClick={() => handleDeleteItem(item.id)} disabled={saving} className="bg-white text-red-600 px-4 py-1.5 rounded-full text-[10px] font-black flex items-center gap-1 shadow-sm">
-                                      {saving ? <Loader2 size={12} className="animate-spin" /> : <><CheckCircle2 size={14}/> بله</>}
-                                   </button>
+                                   <button onClick={() => handleDeleteItem(item.id)} disabled={saving} className="bg-white text-red-600 px-4 py-1.5 rounded-full text-[10px] font-black flex items-center gap-1 shadow-sm">{saving ? <Loader2 size={12} className="animate-spin" /> : <><CheckCircle2 size={14}/> بله</>}</button>
                                    <button onClick={() => setItemToDelete(null)} className="bg-red-700 text-white px-4 py-1.5 rounded-full text-[10px] font-black">خیر</button>
                                 </div>
                              </div>
@@ -541,29 +507,10 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
                   </div>
                 );
               })}
-              {menuItems.length === 0 && !loading && (
-                 <div className="text-center py-20 opacity-20">
-                    <Utensils size={48} className="mx-auto mb-2" />
-                    <p className="text-xs font-bold italic">هنوز هیچ غذایی در منو ثبت نشده است.</p>
-                 </div>
-              )}
             </div>
           </div>
         )}
       </div>
-
-      {showMapModal && (
-        <div className="fixed inset-0 bg-black/80 z-[200] p-4 flex items-center justify-center backdrop-blur-sm">
-           <div className="bg-white w-full h-[80vh] max-w-md rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95">
-              <div className="p-5 flex justify-between items-center border-b border-gray-100">
-                 <h3 className="font-black text-gray-900">انتخاب مکان رستوران</h3>
-                 <button onClick={() => setShowMapModal(false)} className="p-2 text-gray-400"><X size={24} /></button>
-              </div>
-              <div className="flex-1 relative"><div ref={mapContainerRef} className="w-full h-full" /></div>
-              <div className="p-6 bg-gray-50"><button onClick={handleConfirmMapSelection} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-all"><CheckCircle2 size={20}/> تایید این موقعیت</button></div>
-           </div>
-        </div>
-      )}
     </div>
   );
 };

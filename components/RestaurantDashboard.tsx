@@ -40,7 +40,7 @@ const CATEGORIES: MenuCategoryDef[] = [
   { key: 'burger', title_fa: 'همبرگر', icon_name: 'ChefHat' },
   { key: 'fried', title_fa: 'سوخاری', icon_name: 'Drumstick' },
   { key: 'drink', title_fa: 'نوشیدنی', icon_name: 'GlassWater' },
-  { key: 'appetizer', title_fa: 'پیش غذا', icon_name: 'CakeSlice' },
+  { key: 'dessert', title_fa: 'پیش غذا', icon_name: 'CakeSlice' },
   { key: 'other', title_fa: 'سایر', icon_name: 'Utensils' },
 ];
 
@@ -424,7 +424,7 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
             )}
             {showAddForm && (
               <div className="bg-white p-6 rounded-[2.5rem] border-2 border-orange-500 space-y-4 shadow-xl animate-in zoom-in-95">
-                <div className="flex justify-between items-center"><span className="font-black text-orange-600">اطلاعات غذا</span><button onClick={resetForm}><X size={20}/></button></div>
+                <div className="flex justify-between items-center"><span className="font-black text-orange-600">اطلاوات غذا</span><button onClick={resetForm}><X size={20}/></button></div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 mr-2">تصویر غذا:</label>
                   <div className="relative group aspect-video bg-gray-50 rounded-2xl overflow-hidden border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer">

@@ -39,7 +39,7 @@ const CATEGORIES: MenuCategoryDef[] = [
   { key: 'burger', title_fa: 'همبرگر', icon_name: 'ChefHat' },
   { key: 'fried', title_fa: 'سوخاری', icon_name: 'Drumstick' },
   { key: 'drink', title_fa: 'نوشیدنی', icon_name: 'GlassWater' },
-  { key: 'appetizer', title_fa: 'پیش غذا', icon_name: 'CakeSlice' },
+  { key: 'dessert', title_fa: 'پیش غذا', icon_name: 'CakeSlice' },
   { key: 'other', title_fa: 'سایر', icon_name: 'Utensils' },
 ];
 

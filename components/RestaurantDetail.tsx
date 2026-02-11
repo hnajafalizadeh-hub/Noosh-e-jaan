@@ -51,12 +51,7 @@ const RestaurantDetail: React.FC<Props> = ({ restaurantId, onBack, onPostClick }
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | null>(null);
   const [detailedRatings, setDetailedRatings] = useState({
-    avg: 0,
-    food: 0,
-    price: 0,
-    parking: 0,
-    ambiance: 0,
-    count: 0
+    avg: 0, food: 0, price: 0, parking: 0, ambiance: 0, count: 0
   });
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -95,14 +90,33 @@ const RestaurantDetail: React.FC<Props> = ({ restaurantId, onBack, onPostClick }
         if (firstCat) setSelectedCategory(firstCat.key);
       }
       if (postsRes.data) {
-        setPosts(postsRes.data as any);
-        const count = postsRes.data.length;
+        const processedPosts = postsRes.data.map((p: any) => {
+          let urls: string[] = [];
+          try {
+            if (p.photo_url && (p.photo_url.startsWith('[') || p.photo_url.startsWith('{'))) {
+              urls = JSON.parse(p.photo_url);
+            } else if (p.photo_url) {
+              urls = [p.photo_url];
+            }
+          } catch (e) {
+            urls = [p.photo_url];
+          }
+          const finalUrls = Array.isArray(urls) ? urls : [p.photo_url];
+          return { 
+            ...p, 
+            photo_urls: finalUrls,
+            display_photo: finalUrls[0] || '' 
+          };
+        });
+        setPosts(processedPosts as any);
+        
+        const count = processedPosts.length;
         if (uId) {
-          const alreadyReviewed = postsRes.data.some((p: any) => p.user_id === uId);
+          const alreadyReviewed = processedPosts.some((p: any) => p.user_id === uId);
           setHasUserReviewed(alreadyReviewed);
         }
         if (count > 0) {
-          const sum = (key: keyof Post) => postsRes.data.reduce((acc, p) => acc + (Number(p[key]) || 0), 0);
+          const sum = (key: keyof Post) => processedPosts.reduce((acc, p) => acc + (Number(p[key]) || 0), 0);
           setDetailedRatings({
             avg: sum('rating') / count,
             food: sum('rating_food') / count,
@@ -209,190 +223,47 @@ const RestaurantDetail: React.FC<Props> = ({ restaurantId, onBack, onPostClick }
         <div className="flex justify-between items-center mb-6"><h3 className="font-black text-gray-900">{CATEGORIES.find(c => c.key === selectedCategory)?.title_fa || 'لیست غذاها'}</h3><span className="text-[10px] font-black text-gray-400">{filteredItems.length} غذا</span></div>
         <div className="grid grid-cols-1 gap-4">
           {filteredItems.map(item => (
-            <div 
-              key={item.id} 
-              onClick={() => setSelectedMenuItem(item)}
-              className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden flex items-center p-4 gap-4 active:scale-95 transition-transform duration-200 cursor-pointer"
-            >
-              <div className="w-24 h-24 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-200 shrink-0 overflow-hidden relative">
-                {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <Utensils size={24} />}
-              </div>
-              <div className="flex-1 flex flex-col h-24 justify-center">
-                <h4 className="font-black text-sm text-gray-900 mb-0.5">{item.name}</h4>
-                <p className="text-[9px] font-bold text-gray-400 line-clamp-1 mb-2">{item.description || "توضیحی ثبت نشده است."}</p>
-                <span className="text-sm font-black text-orange-600">{(item.discount_price || item.price).toLocaleString()} تومان</span>
-              </div>
+            <div key={item.id} onClick={() => setSelectedMenuItem(item)} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden flex items-center p-4 gap-4 active:scale-95 transition-transform duration-200 cursor-pointer">
+              <div className="w-24 h-24 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-200 shrink-0 overflow-hidden relative">{item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <Utensils size={24} />}</div>
+              <div className="flex-1 flex flex-col h-24 justify-center"><h4 className="font-black text-sm text-gray-900 mb-0.5">{item.name}</h4><p className="text-[9px] font-bold text-gray-400 line-clamp-1 mb-2">{item.description || "توضیحی ثبت نشده است."}</p><span className="text-sm font-black text-orange-600">{(item.discount_price || item.price).toLocaleString()} تومان</span></div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Ratings and Reviews Section */}
       <div className="p-6 space-y-8 bg-gray-50 dark:bg-dark-bg mt-8">
-        <div className="flex justify-between items-center">
-           <h3 className="font-black text-xl text-gray-900 dark:text-white">نظرات و امتیازها</h3>
-           <div className="flex items-center gap-1.5 text-orange-600 bg-orange-50 dark:bg-orange-900/20 px-4 py-2 rounded-2xl">
-              <Star size={16} className="fill-current" />
-              <span className="text-sm font-black">{detailedRatings.avg.toFixed(1)}</span>
-           </div>
-        </div>
-
-        {/* Detailed Stats Cards */}
+        <div className="flex justify-between items-center"><h3 className="font-black text-xl text-gray-900 dark:text-white">نظرات و امتیازها</h3><div className="flex items-center gap-1.5 text-orange-600 bg-orange-50 dark:bg-orange-900/20 px-4 py-2 rounded-2xl"><Star size={16} className="fill-current" /><span className="text-sm font-black">{detailedRatings.avg.toFixed(1)}</span></div></div>
         <div className="grid grid-cols-2 gap-3">
-           <div className="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-dark-border shadow-sm flex flex-col items-center gap-2">
-              <Utensils size={20} className="text-orange-500" />
-              <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">کیفیت طعم</span>
-              <span className="text-sm font-black text-gray-900 dark:text-white">{detailedRatings.food.toFixed(1)}</span>
-           </div>
-           <div className="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-dark-border shadow-sm flex flex-col items-center gap-2">
-              <DollarSign size={20} className="text-orange-500" />
-              <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">ارزش قیمت</span>
-              <span className="text-sm font-black text-gray-900 dark:text-white">{detailedRatings.price.toFixed(1)}</span>
-           </div>
-           <div className="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-dark-border shadow-sm flex flex-col items-center gap-2">
-              <Car size={20} className="text-orange-500" />
-              <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">جای پارک</span>
-              <span className="text-sm font-black text-gray-900 dark:text-white">{detailedRatings.parking.toFixed(1)}</span>
-           </div>
-           <div className="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-dark-border shadow-sm flex flex-col items-center gap-2">
-              <Sparkles size={20} className="text-orange-500" />
-              <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">محیط و فضا</span>
-              <span className="text-sm font-black text-gray-900 dark:text-white">{detailedRatings.ambiance.toFixed(1)}</span>
-           </div>
+           <div className="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-dark-border shadow-sm flex flex-col items-center gap-2"><Utensils size={20} className="text-orange-500" /><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">کیفیت طعم</span><span className="text-sm font-black text-gray-900 dark:text-white">{detailedRatings.food.toFixed(1)}</span></div>
+           <div className="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-dark-border shadow-sm flex flex-col items-center gap-2"><DollarSign size={20} className="text-orange-500" /><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">ارزش قیمت</span><span className="text-sm font-black text-gray-900 dark:text-white">{detailedRatings.price.toFixed(1)}</span></div>
+           <div className="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-dark-border shadow-sm flex flex-col items-center gap-2"><Car size={20} className="text-orange-500" /><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">جای پارک</span><span className="text-sm font-black text-gray-900 dark:text-white">{detailedRatings.parking.toFixed(1)}</span></div>
+           <div className="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-dark-border shadow-sm flex flex-col items-center gap-2"><Sparkles size={20} className="text-orange-500" /><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">محیط و فضا</span><span className="text-sm font-black text-gray-900 dark:text-white">{detailedRatings.ambiance.toFixed(1)}</span></div>
         </div>
 
-        {/* Submit Review Form */}
         {!hasUserReviewed ? (
-          <div className="bg-white dark:bg-dark-card p-6 rounded-[2.5rem] border-2 border-orange-500/20 shadow-xl space-y-6">
-             <div className="flex items-center gap-3 text-orange-600">
-                <Send size={20} />
-                <h4 className="font-black text-sm">تجربه خود را ثبت کنید</h4>
-             </div>
-             
-             <div className="space-y-1 divide-y divide-gray-50 dark:divide-dark-border">
-                <RatingStars label="کیفیت طعم و غذا" val={qFood} setVal={setQFood} icon={Utensils} />
-                <RatingStars label="تناسب قیمت به حجم" val={qPrice} setVal={setQPrice} icon={DollarSign} />
-                <RatingStars label="سهولت در جای پارک" val={qPark} setVal={setQPark} icon={Car} />
-                <RatingStars label="محیط، دکور و اتمسفر" val={qAmb} setVal={setQAmb} icon={Sparkles} />
-             </div>
-
-             <textarea 
-               className="w-full p-4 bg-gray-50 dark:bg-dark-bg border border-gray-100 dark:border-dark-border rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-orange-500/20 dark:text-white"
-               placeholder="نظر شکم‌گردی شما در مورد این پاتوق..."
-               value={reviewText}
-               onChange={(e) => setReviewText(e.target.value)}
-             />
-
-             <button 
-               onClick={handleSubmitQuickReview}
-               disabled={submittingReview || !reviewText.trim()}
-               className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-xs shadow-xl shadow-orange-100 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-             >
-                {submittingReview ? <Loader2 className="animate-spin" size={20} /> : 'ثبت امتیاز و نظر'}
-             </button>
-          </div>
+          <div className="bg-white dark:bg-dark-card p-6 rounded-[2.5rem] border-2 border-orange-500/20 shadow-xl space-y-6"><div className="flex items-center gap-3 text-orange-600"><Send size={20} /><h4 className="font-black text-sm">تجربه خود را ثبت کنید</h4></div><div className="space-y-1 divide-y divide-gray-50 dark:divide-dark-border"><RatingStars label="کیفیت طعم و غذا" val={qFood} setVal={setQFood} icon={Utensils} /><RatingStars label="تناسب قیمت به حجم" val={qPrice} setVal={setQPrice} icon={DollarSign} /><RatingStars label="سهولت در جای پارک" val={qPark} setVal={setQPark} icon={Car} /><RatingStars label="محیط، دکور و اتمسفر" val={qAmb} setVal={setQAmb} icon={Sparkles} /></div><textarea className="w-full p-4 bg-gray-50 dark:bg-dark-bg border border-gray-100 dark:border-dark-border rounded-2xl text-xs font-bold outline-none focus:ring-2 focus:ring-orange-500/20 dark:text-white" placeholder="نظر شکم‌گردی شما در مورد این پاتوق..." value={reviewText} onChange={(e) => setReviewText(e.target.value)} /><button onClick={handleSubmitQuickReview} disabled={submittingReview || !reviewText.trim()} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-xs shadow-xl shadow-orange-100 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">{submittingReview ? <Loader2 className="animate-spin" size={20} /> : 'ثبت امتیاز و نظر'}</button></div>
         ) : (
-          <div className="bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-500/20 p-6 rounded-[2.5rem] text-center space-y-2">
-             <CheckCircle2 size={32} className="text-green-500 mx-auto" />
-             <h4 className="font-black text-sm text-green-900 dark:text-green-400">شما نظر خود را ثبت کرده‌اید</h4>
-             <p className="text-[10px] font-bold text-green-600 opacity-70">ممنون که به بقیه شکموها کمک می‌کنی!</p>
-          </div>
+          <div className="bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-500/20 p-6 rounded-[2.5rem] text-center space-y-2"><CheckCircle2 size={32} className="text-green-500 mx-auto" /><h4 className="font-black text-sm text-green-900 dark:text-green-400">شما نظر خود را ثبت کرده‌اید</h4><p className="text-[10px] font-bold text-green-600 opacity-70">ممنون که به بقیه شکموها کمک می‌کنی!</p></div>
         )}
 
-        {/* Success Feedback Overlay */}
-        {showSuccess && (
-           <div className="fixed inset-x-6 top-20 z-50 bg-green-600 text-white p-4 rounded-2xl text-center font-black text-xs animate-in slide-in-from-top-4 shadow-2xl">
-              امتیاز شما با موفقیت ثبت شد!
-           </div>
-        )}
+        {showSuccess && <div className="fixed inset-x-6 top-20 z-50 bg-green-600 text-white p-4 rounded-2xl text-center font-black text-xs animate-in slide-in-from-top-4 shadow-2xl">امتیاز شما با موفقیت ثبت شد!</div>}
 
-        {/* Existing Reviews List */}
         <div className="space-y-4 pt-4">
-           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-2 flex items-center gap-2">
-              <MessageCircle size={14} className="text-orange-500" /> تجربیات دیگر شکموها:
-           </p>
+           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-2 flex items-center gap-2"><MessageCircle size={14} className="text-orange-500" /> تجربیات دیگر شکموها:</p>
            {posts.length === 0 ? (
-             <div className="text-center py-10 opacity-20">
-                <Utensils size={40} className="mx-auto mb-2" />
-                <p className="text-xs font-bold">هنوز تجربه‌ای ثبت نشده است.</p>
-             </div>
+             <div className="text-center py-10 opacity-20"><Utensils size={40} className="mx-auto mb-2" /><p className="text-xs font-bold">هنوز تجربه‌ای ثبت نشده است.</p></div>
            ) : (
              <div className="space-y-4">
                 {posts.map((post) => (
-                  <div key={post.id} onClick={() => onPostClick?.(post.id)} className="bg-white dark:bg-dark-card p-5 rounded-[2rem] border border-gray-100 dark:border-dark-border shadow-sm space-y-3 cursor-pointer active:scale-[0.98] transition-all">
-                     <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3">
-                           <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-dark-bg flex items-center justify-center overflow-hidden">
-                              {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" /> : <User className="text-orange-500" size={20} />}
-                           </div>
-                           <div>
-                              <p className="text-[11px] font-black text-gray-900 dark:text-white">@{post.profiles?.username}</p>
-                              <p className="text-[8px] font-bold text-gray-400">{new Date(post.created_at).toLocaleDateString('fa-IR')}</p>
-                           </div>
-                        </div>
-                        <div className="bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-xl text-orange-600 flex items-center gap-1">
-                           <Star size={12} className="fill-current" />
-                           <span className="text-xs font-black">{post.rating.toFixed(1)}</span>
-                        </div>
-                     </div>
-                     <p className="text-xs font-bold text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-3">
-                        {post.caption}
-                     </p>
-                     {post.photo_url && (
-                        <div className="w-full aspect-video rounded-2xl overflow-hidden bg-gray-50 border border-gray-100">
-                           <img src={Array.isArray(post.photo_urls) ? post.photo_urls[0] : post.photo_url} className="w-full h-full object-cover" />
-                        </div>
-                     )}
-                  </div>
+                  <div key={post.id} onClick={() => onPostClick?.(post.id)} className="bg-white dark:bg-dark-card p-5 rounded-[2rem] border border-gray-100 dark:border-dark-border shadow-sm space-y-3 cursor-pointer active:scale-[0.98] transition-all"><div className="flex justify-between items-start"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-dark-bg flex items-center justify-center overflow-hidden">{post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" /> : <User className="text-orange-500" size={20} />}</div><div><p className="text-[11px] font-black text-gray-900 dark:text-white">@{post.profiles?.username}</p><p className="text-[8px] font-bold text-gray-400">{new Date(post.created_at).toLocaleDateString('fa-IR')}</p></div></div><div className="bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-xl text-orange-600 flex items-center gap-1"><Star size={12} className="fill-current" /><span className="text-xs font-black">{post.rating.toFixed(1)}</span></div></div><p className="text-xs font-bold text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-3">{post.caption}</p>{(post as any).display_photo && (<div className="w-full aspect-video rounded-2xl overflow-hidden bg-gray-50 border border-gray-100"><img src={(post as any).display_photo} className="w-full h-full object-cover" /></div>)}</div>
                 ))}
              </div>
            )}
         </div>
       </div>
 
-      {/* Menu Item Detail Modal */}
       {selectedMenuItem && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={() => setSelectedMenuItem(null)}>
-           <div className="bg-white dark:bg-dark-card rounded-[3rem] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
-              <div className="relative aspect-square">
-                 {selectedMenuItem.image_url ? (
-                   <img src={selectedMenuItem.image_url} className="w-full h-full object-cover" />
-                 ) : (
-                   <div className="w-full h-full bg-orange-50 dark:bg-dark-bg flex items-center justify-center text-orange-200">
-                      <Utensils size={64} />
-                   </div>
-                 )}
-                 <button 
-                   onClick={() => setSelectedMenuItem(null)}
-                   className="absolute top-4 right-4 p-2 bg-black/30 text-white rounded-full backdrop-blur-md"
-                 >
-                    <X size={20} />
-                 </button>
-              </div>
-              <div className="p-8 space-y-4">
-                 <div className="flex justify-between items-start">
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white">{selectedMenuItem.name}</h3>
-                    <div className="bg-orange-50 dark:bg-orange-900/20 px-4 py-2 rounded-2xl border border-orange-100 dark:border-orange-500/20">
-                       <span className="text-sm font-black text-orange-600">{(selectedMenuItem.discount_price || selectedMenuItem.price).toLocaleString()} <span className="text-[10px]">تومان</span></span>
-                    </div>
-                 </div>
-                 <div className="space-y-2">
-                    <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                       <Tag size={12} className="text-orange-500" /> توضیحات غذا:
-                    </p>
-                    <p className="text-xs font-bold text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-dark-bg p-4 rounded-2xl border border-gray-100 dark:border-dark-border">
-                       {selectedMenuItem.description || "توضیحی برای این آیتم ثبت نشده است."}
-                    </p>
-                 </div>
-                 <button 
-                   onClick={() => setSelectedMenuItem(null)}
-                   className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-xs active:scale-95 transition-all shadow-xl shadow-orange-100 dark:shadow-none"
-                 >
-                    بستن جزئیات
-                 </button>
-              </div>
-           </div>
-        </div>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300" onClick={() => setSelectedMenuItem(null)}><div className="bg-white dark:bg-dark-card rounded-[3rem] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}><div className="relative aspect-square">{selectedMenuItem.image_url ? <img src={selectedMenuItem.image_url} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-orange-50 dark:bg-dark-bg flex items-center justify-center text-orange-200"><Utensils size={64} /></div>}<button onClick={() => setSelectedMenuItem(null)} className="absolute top-4 right-4 p-2 bg-black/30 text-white rounded-full backdrop-blur-md"><X size={20} /></button></div><div className="p-8 space-y-4"><div className="flex justify-between items-start"><h3 className="text-xl font-black text-gray-900 dark:text-white">{selectedMenuItem.name}</h3><div className="bg-orange-50 dark:bg-orange-900/20 px-4 py-2 rounded-2xl border border-orange-100 dark:border-orange-500/20"><span className="text-sm font-black text-orange-600">{(selectedMenuItem.discount_price || selectedMenuItem.price).toLocaleString()} <span className="text-[10px]">تومان</span></span></div></div><div className="space-y-2"><p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2"><Tag size={12} className="text-orange-500" /> توضیحات غذا:</p><p className="text-xs font-bold text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-dark-bg p-4 rounded-2xl border border-gray-100 dark:border-dark-border">{selectedMenuItem.description || "توضیحی برای این آیتم ثبت نشده است."}</p></div><button onClick={() => setSelectedMenuItem(null)} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-xs active:scale-95 transition-all shadow-xl shadow-orange-100 dark:shadow-none">بستن جزئیات</button></div></div></div>
       )}
     </div>
   );

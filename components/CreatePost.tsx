@@ -109,15 +109,14 @@ const CreatePost: React.FC<CreatePostProps> = ({ onComplete, editPost }) => {
 
       let targetRestaurantId = selectedRestaurant?.id || editPost?.restaurant_id;
 
-      // اگر کاربر نام دستی وارد کرده باشد
+      // ثبت پاتوق جدید در صورتی که کاربر نام دستی وارد کرده باشد
       if (isCustomRestaurant && customRestName.trim()) {
         const { data: newRest, error: restErr } = await supabase
           .from('restaurants')
           .insert([{ 
             name: customRestName.trim(), 
             city: 'تهران', 
-            is_active: false, 
-            verified: false 
+            is_active: false // ستون verified حذف شد چون در دیتابیس وجود ندارد
           }])
           .select()
           .single();
@@ -128,10 +127,8 @@ const CreatePost: React.FC<CreatePostProps> = ({ onComplete, editPost }) => {
 
       if (!targetRestaurantId) throw new Error('لطفاً یک پاتوق انتخاب کنید یا نام آن را بنویسید.');
 
-      // لیست نهایی آدرس تصاویر
       const finalUrls = photoPreviews.filter(p => p.startsWith('http'));
       
-      // آپلود فایل‌های جدید
       for (const file of imageFiles) {
         const compressedBlob = (await compressImage(file, 200)) as Blob;
         const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substr(2, 5)}.jpg`;
@@ -171,7 +168,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ onComplete, editPost }) => {
       setTimeout(() => onComplete(), 1200);
     } catch (err: any) {
       console.error("Submit Error:", err);
-      setError(err.message || 'خطا در ثبت اطلاعات.');
+      setError(err.message || 'خطا در ثبت اطلاعات در دیتابیس.');
     } finally {
       setLoading(false);
     }

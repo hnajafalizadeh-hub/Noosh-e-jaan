@@ -31,7 +31,19 @@ const App: React.FC = () => {
   const channelRef = useRef<any>(null);
   const isInternalNavRef = useRef(false);
 
-  // هماهنگی با دکمه بک گوشی و ژست‌های حرکتی
+  // تابع کمکی برای مدیریت امن تاریخچه مرورگر با بلوک try/catch برای جلوگیری از توقف برنامه در Iframe
+  const safeHistoryUpdate = (type: 'push' | 'replace', state: any) => {
+    try {
+      if (type === 'push') {
+        window.history.pushState(state, "", window.location.pathname);
+      } else {
+        window.history.replaceState(state, "", window.location.pathname);
+      }
+    } catch (e) {
+      console.warn('History API restricted:', e);
+    }
+  };
+
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       if (event.state) {
@@ -47,24 +59,22 @@ const App: React.FC = () => {
 
     window.addEventListener('popstate', handlePopState);
     
-    // ثبت وضعیت اولیه
     if (!window.history.state) {
-      window.history.replaceState({ view: 'feed' }, "", "");
+      safeHistoryUpdate('replace', { view: 'feed' });
     }
 
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // ثبت تغییرات وضعیت در تاریخچه مرورگر
   useEffect(() => {
     if (!isInternalNavRef.current && session) {
-      window.history.pushState({ 
+      safeHistoryUpdate('push', { 
         view, 
         selectedRestId, 
         selectedPostId, 
         selectedUserId,
         postToEdit
-      }, "", "");
+      });
     }
   }, [view, selectedRestId, selectedPostId, selectedUserId]);
 
@@ -192,9 +202,14 @@ const App: React.FC = () => {
   };
 
   const navigateBack = () => {
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
+    try {
+      // استفاده امن از history.back با چک کردن امکان بازگشت
+      if (window.history.state && window.history.length > 1) {
+        window.history.back();
+      } else {
+        setView('feed');
+      }
+    } catch (e) {
       setView('feed');
     }
   };
@@ -224,7 +239,7 @@ const App: React.FC = () => {
                 <button onClick={() => setShowSqlGuide(false)} className="text-gray-400 p-2"><X size={24}/></button>
              </div>
              <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 leading-relaxed">
-               خطاهای ۴۰۰ به دلیل نبود جداول در Supabase است.
+               ستون verified در جدول restaurants وجود ندارد. کد اصلاح شد تا دیگر از آن استفاده نشود.
              </p>
              <button 
                onClick={() => setShowSqlGuide(false)}

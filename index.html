@@ -92,11 +92,13 @@
 }
 </script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<link rel="stylesheet" href="index.css">
 <link rel="stylesheet" href="/index.css">
 </head>
 <body class="safe-top safe-bottom">
     <div id="root"></div>
-    <!-- استفاده از مسیر مطلق برای اطمینان از لود شدن در حالت PWA -->
-    <script type="module" src="/index.tsx"></script>
+    <!-- استفاده از نقطه (.) برای اطمینان از یافتن فایل در مسیر جاری -->
+    <script type="module" src="./index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>

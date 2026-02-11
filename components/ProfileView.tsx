@@ -115,13 +115,16 @@ const ProfileView: React.FC<ProfileViewProps> = ({
           } catch (e) {
             urls = [p.photo_url];
           }
-          const finalUrls = Array.isArray(urls) ? urls : [p.photo_url];
+          const finalUrls = Array.isArray(urls) ? urls.filter(u => u && u.trim() !== '') : [p.photo_url].filter(u => u && u.trim() !== '');
           return { 
             ...p, 
             photo_urls: finalUrls,
             display_photo: finalUrls[0] || '' 
           };
-        });
+        })
+        // فقط نمایش پست‌هایی که عکس دارند در گرید پروفایل
+        .filter(p => p.display_photo !== '');
+        
         setPosts(processedPosts as any);
       }
 

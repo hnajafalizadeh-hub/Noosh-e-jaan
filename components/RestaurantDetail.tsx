@@ -101,7 +101,7 @@ const RestaurantDetail: React.FC<Props> = ({ restaurantId, onBack, onPostClick }
           } catch (e) {
             urls = [p.photo_url];
           }
-          const finalUrls = Array.isArray(urls) ? urls : [p.photo_url];
+          const finalUrls = Array.isArray(urls) ? urls.filter(u => u && u.trim() !== '') : [p.photo_url].filter(u => u && u.trim() !== '');
           return { 
             ...p, 
             photo_urls: finalUrls,
@@ -146,7 +146,7 @@ const RestaurantDetail: React.FC<Props> = ({ restaurantId, onBack, onPostClick }
         rating_price: qPrice,
         rating_parking: qPark,
         rating_ambiance: qAmb,
-        photo_url: '' 
+        photo_url: '' // ثبت بدون عکس
       }]);
       if (error) throw error;
       setReviewText('');
@@ -255,7 +255,7 @@ const RestaurantDetail: React.FC<Props> = ({ restaurantId, onBack, onPostClick }
            ) : (
              <div className="space-y-4">
                 {posts.map((post) => (
-                  <div key={post.id} onClick={() => onPostClick?.(post.id)} className="bg-white dark:bg-dark-card p-5 rounded-[2rem] border border-gray-100 dark:border-dark-border shadow-sm space-y-3 cursor-pointer active:scale-[0.98] transition-all"><div className="flex justify-between items-start"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-dark-bg flex items-center justify-center overflow-hidden">{post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" /> : <User className="text-orange-500" size={20} />}</div><div><p className="text-[11px] font-black text-gray-900 dark:text-white">@{post.profiles?.username}</p><p className="text-[8px] font-bold text-gray-400">{new Date(post.created_at).toLocaleDateString('fa-IR')}</p></div></div><div className="bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-xl text-orange-600 flex items-center gap-1"><Star size={12} className="fill-current" /><span className="text-xs font-black">{post.rating.toFixed(1)}</span></div></div><p className="text-xs font-bold text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-3">{post.caption}</p>{(post as any).display_photo && (<div className="w-full aspect-video rounded-2xl overflow-hidden bg-gray-50 border border-gray-100"><img src={(post as any).display_photo} className="w-full h-full object-cover" /></div>)}</div>
+                  <div key={post.id} onClick={() => onPostClick?.(post.id)} className="bg-white dark:bg-dark-card p-5 rounded-[2rem] border border-gray-100 dark:border-dark-border shadow-sm space-y-3 cursor-pointer active:scale-[0.98] transition-all"><div className="flex justify-between items-start"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-dark-bg flex items-center justify-center overflow-hidden">{post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" /> : <User className="text-orange-500" size={20} />}</div><div><p className="text-[11px] font-black text-gray-900 dark:text-white">@{post.profiles?.username}</p><p className="text-[8px] font-bold text-gray-400">{new Date(post.created_at).toLocaleDateString('fa-IR')}</p></div></div><div className="bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-xl text-orange-600 flex items-center gap-1"><Star size={12} className="fill-current" /><span className="text-xs font-black">{post.rating.toFixed(1)}</span></div></div><p className="text-xs font-bold text-gray-700 dark:text-gray-300 leading-relaxed mb-1">{post.caption}</p>{(post as any).display_photo && (post as any).display_photo !== '' && (<div className="w-full aspect-video rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 mt-2"><img src={(post as any).display_photo} className="w-full h-full object-cover" /></div>)}</div>
                 ))}
              </div>
            )}

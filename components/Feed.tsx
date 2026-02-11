@@ -111,6 +111,9 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
           dislikes (user_id),
           comments (id, content)
         `)
+        // فیلتر کردن پست‌هایی که فاقد تصویر هستند (امتیازات متنی)
+        .not('photo_url', 'eq', '')
+        .not('photo_url', 'eq', '[]')
         .order('created_at', { ascending: false });
 
       if (postError) throw postError;
@@ -127,13 +130,16 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
           } catch (e) {
             urls = [p.photo_url];
           }
-          return { ...p, photo_urls: Array.isArray(urls) ? urls : [p.photo_url] };
-        });
+          const finalUrls = Array.isArray(urls) ? urls : [p.photo_url];
+          // فیلتر نهایی برای اطمینان از وجود حداقل یک عکس واقعی
+          return { ...p, photo_urls: finalUrls.filter(u => u && u.trim() !== '') };
+        }).filter(p => p.photo_urls.length > 0); // فقط نمایش موارد دارای عکس در فید
+
         setAllPosts(processedPosts as any);
       }
     } catch (err: any) { 
       console.error(err);
-      setError('خطا در دریافت پاتوق‌ها. لطفاً دوباره تلاش کنید.');
+      setError('خطا در دریافت پاتوق‌ها.');
     } finally { 
       setLoading(false); 
       setRefreshing(false);
@@ -149,7 +155,7 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
       setAllPosts(prev => prev.filter(p => p.id !== deletingPostId));
       setDeletingPostId(null);
     } catch (e) {
-      alert('خطا در حذف پست. ممکن است دسترسی لازم را نداشته باشید.');
+      alert('خطا در حذف پست.');
     } finally {
       setIsDeleting(false);
     }
@@ -193,7 +199,7 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
     const isOwner = post.user_id === currentUserId;
     const [currentImgIdx, setCurrentImgIdx] = useState(0);
 
-    const photos = post.photo_urls && post.photo_urls.length > 0 ? post.photo_urls : (post.photo_url ? [post.photo_url] : []);
+    const photos = post.photo_urls || [];
 
     return (
       <div className={`bg-white dark:bg-dark-card border-y border-gray-100 dark:border-dark-border shadow-sm relative transition-all duration-700 ${isNew ? 'border-r-4 border-r-orange-500' : ''}`} dir="rtl">
@@ -235,37 +241,23 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
             </div>
         )}
 
-        {photos.length > 0 ? (
-          <div className="relative group">
-            <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar" onScroll={(e: any) => {
-              const idx = Math.round(e.target.scrollLeft / e.target.offsetWidth);
-              setCurrentImgIdx(Math.abs(idx));
-            }}>
-              {photos.map((url, i) => (
-                <img key={i} src={url} className="w-full aspect-square object-cover snap-center shrink-0 cursor-pointer" onClick={() => onPostClick?.(post.id)} />
+        <div className="relative group">
+          <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar" onScroll={(e: any) => {
+            const idx = Math.round(e.target.scrollLeft / e.target.offsetWidth);
+            setCurrentImgIdx(Math.abs(idx));
+          }}>
+            {photos.map((url, i) => (
+              <img key={i} src={url} className="w-full aspect-square object-cover snap-center shrink-0 cursor-pointer" onClick={() => onPostClick?.(post.id)} />
+            ))}
+          </div>
+          {photos.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {photos.map((_, i) => (
+                <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${currentImgIdx === i ? 'bg-orange-500 w-4' : 'bg-white/50'}`}></div>
               ))}
             </div>
-            {photos.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {photos.map((_, i) => (
-                  <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${currentImgIdx === i ? 'bg-orange-500 w-4' : 'bg-white/50'}`}></div>
-                ))}
-              </div>
-            )}
-            {photos.length > 1 && currentImgIdx > 0 && (
-              <button className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/20 text-white rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                 <ChevronRight size={20}/>
-              </button>
-            )}
-            {photos.length > 1 && currentImgIdx < photos.length - 1 && (
-              <button className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/20 text-white rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                 <ChevronLeft size={20}/>
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="w-full aspect-video bg-gray-50 dark:bg-dark-bg flex items-center justify-center border-y border-gray-100 dark:border-dark-border italic text-gray-300 text-[10px] font-bold">تجربه متنی</div>
-        )}
+          )}
+        </div>
 
         <div className="px-4 py-4">
           <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed mb-4">
@@ -354,7 +346,6 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
         {allPosts.length > 0 && <div className="py-20 text-center"><div className="inline-flex flex-col items-center gap-2 text-gray-300 dark:text-gray-600"><ArrowUpCircle size={32} /><p className="text-[10px] font-black uppercase tracking-widest">به انتهای پاتوق رسیدید!</p></div></div>}
       </div>
 
-      {/* Custom Deletion Modal */}
       {deletingPostId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-in fade-in duration-200">
            <div className="bg-white dark:bg-dark-card rounded-[2.5rem] w-full max-w-sm p-8 space-y-6 shadow-2xl border border-gray-100 dark:border-dark-border animate-in zoom-in-95 duration-200">
@@ -363,20 +354,19 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
               </div>
               <div className="text-center space-y-2">
                  <h3 className="text-lg font-black text-gray-900 dark:text-white">حذف این تجربه؟</h3>
-                 <p className="text-xs font-bold text-gray-400 leading-relaxed">آیا از حذف این تجربه شکموگردی مطمئن هستید؟ این عمل غیرقابل بازگشت است.</p>
+                 <p className="text-xs font-bold text-gray-400 leading-relaxed">آیا از حذف این تجربه مطمئن هستید؟</p>
               </div>
               <div className="flex gap-3">
                  <button 
                    onClick={confirmDeletePost}
                    disabled={isDeleting}
-                   className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-red-100 dark:shadow-none active:scale-95 transition-all flex items-center justify-center gap-2"
+                   className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-xs active:scale-95 transition-all flex items-center justify-center gap-2"
                  >
-                    {isDeleting ? <Loader2 size={16} className="animate-spin" /> : 'بله، حذف شود'}
+                    {isDeleting ? <Loader2 size={16} className="animate-spin" /> : 'حذف شود'}
                  </button>
                  <button 
                    onClick={() => setDeletingPostId(null)}
-                   disabled={isDeleting}
-                   className="flex-1 py-4 bg-gray-100 dark:bg-dark-bg text-gray-500 dark:text-gray-400 rounded-2xl font-black text-xs active:scale-95 transition-all"
+                   className="flex-1 py-4 bg-gray-100 dark:bg-dark-bg text-gray-500 dark:text-gray-400 rounded-2xl font-black text-xs active:scale-95"
                  >
                     انصراف
                  </button>

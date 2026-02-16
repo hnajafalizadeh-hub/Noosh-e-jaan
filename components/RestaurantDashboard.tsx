@@ -94,12 +94,28 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
       const timer = setTimeout(() => {
         const initialLat = restLat ? parseFloat(restLat) : 35.6892;
         const initialLng = restLng ? parseFloat(restLng) : 51.3890;
+        
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove();
+        }
+
         mapInstanceRef.current = L.map(mapContainerRef.current).setView([initialLat, initialLng], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstanceRef.current);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap'
+        }).addTo(mapInstanceRef.current);
+        
         markerInstanceRef.current = L.marker([initialLat, initialLng], { draggable: true }).addTo(mapInstanceRef.current);
-        mapInstanceRef.current.on('click', (e: any) => { markerInstanceRef.current.setLatLng(e.latlng); });
-      }, 100);
-      return () => { clearTimeout(timer); if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
+        
+        mapInstanceRef.current.on('click', (e: any) => { 
+          markerInstanceRef.current.setLatLng(e.latlng); 
+        });
+      }, 300);
+      return () => { 
+        if (mapInstanceRef.current) { 
+          mapInstanceRef.current.remove(); 
+          mapInstanceRef.current = null; 
+        } 
+      };
     }
   }, [showMapModal]);
 
@@ -171,7 +187,12 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
     setFetchingGps(true);
     if (!navigator.geolocation) { showStatus('مرورگر شما از GPS پشتیبانی نمی‌کند', 'error'); setFetchingGps(false); return; }
     navigator.geolocation.getCurrentPosition(
-      (position) => { setRestLat(position.coords.latitude.toFixed(6)); setRestLng(position.coords.longitude.toFixed(6)); showStatus('لوکیشن شما با موفقیت دریافت شد', 'success'); setFetchingGps(false); },
+      (position) => { 
+        setRestLat(position.coords.latitude.toFixed(6)); 
+        setRestLng(position.coords.longitude.toFixed(6)); 
+        showStatus('لوکیشن شما با موفقیت دریافت شد', 'success'); 
+        setFetchingGps(false); 
+      },
       (error) => { showStatus('خطا در دریافت لوکیشن', 'error'); setFetchingGps(false); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -511,6 +532,22 @@ const RestaurantDashboard: React.FC<Props> = ({ ownerRecord, onRefreshOwnership 
           </div>
         )}
       </div>
+
+      {showMapModal && (
+        <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-6 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white w-full max-w-md rounded-[3rem] overflow-hidden shadow-2xl animate-in zoom-in-95">
+            <div className="p-6 flex justify-between items-center border-b border-gray-100">
+               <h3 className="font-black text-gray-900">انتخاب موقعیت روی نقشه</h3>
+               <button onClick={() => setShowMapModal(false)} className="text-gray-400 p-2 hover:bg-gray-50 rounded-full"><X size={24}/></button>
+            </div>
+            <div ref={mapContainerRef} className="w-full h-[400px] z-10"></div>
+            <div className="p-6 bg-gray-50 flex flex-col gap-3">
+               <p className="text-[10px] font-bold text-gray-400 text-center">نشانگر را روی مکان دقیق رستوران قرار دهید و سپس تایید کنید</p>
+               <button onClick={handleConfirmMapSelection} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black text-xs shadow-xl active:scale-95 transition-all">تایید موقعیت نهایی</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

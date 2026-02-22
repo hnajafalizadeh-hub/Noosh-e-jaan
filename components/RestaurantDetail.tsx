@@ -13,6 +13,7 @@ import {
 
 interface Props {
   restaurantId: string;
+  highlightMenuItemId?: string | null;
   onBack: () => void;
   onPostClick?: (id: string) => void;
 }
@@ -43,7 +44,7 @@ const CATEGORIES: MenuCategoryDef[] = [
   { key: 'other', title_fa: 'سایر', icon_name: 'Utensils' },
 ];
 
-const RestaurantDetail: React.FC<Props> = ({ restaurantId, onBack, onPostClick }) => {
+const RestaurantDetail: React.FC<Props> = ({ restaurantId, highlightMenuItemId, onBack, onPostClick }) => {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -86,8 +87,23 @@ const RestaurantDetail: React.FC<Props> = ({ restaurantId, onBack, onPostClick }
       if (restRes.data) setRestaurant(restRes.data);
       if (menuRes.data) {
         setMenuItems(menuRes.data);
-        const firstCat = CATEGORIES.find(c => menuRes.data.some((i: any) => i.category_key === c.key));
-        if (firstCat) setSelectedCategory(firstCat.key);
+        
+        // If we have a highlighted item, select its category and open it
+        if (highlightMenuItemId) {
+          const item = menuRes.data.find((i: any) => i.id === highlightMenuItemId);
+          if (item) {
+            setSelectedCategory(item.category_key);
+            setSelectedMenuItem(item);
+            // Small delay to ensure DOM is ready if we wanted to scroll, 
+            // but opening the modal is usually what users expect from a search click
+          } else {
+            const firstCat = CATEGORIES.find(c => menuRes.data.some((i: any) => i.category_key === c.key));
+            if (firstCat) setSelectedCategory(firstCat.key);
+          }
+        } else {
+          const firstCat = CATEGORIES.find(c => menuRes.data.some((i: any) => i.category_key === c.key));
+          if (firstCat) setSelectedCategory(firstCat.key);
+        }
       }
       if (postsRes.data) {
         const processedPosts = postsRes.data.map((p: any) => {
@@ -221,7 +237,7 @@ const RestaurantDetail: React.FC<Props> = ({ restaurantId, onBack, onPostClick }
       </div>
       <div className="p-6">
         <div className="flex justify-between items-center mb-6"><h3 className="font-black text-gray-900">{CATEGORIES.find(c => c.key === selectedCategory)?.title_fa || 'لیست غذاها'}</h3><span className="text-[10px] font-black text-gray-400">{filteredItems.length} غذا</span></div>
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {filteredItems.map(item => (
             <div key={item.id} onClick={() => setSelectedMenuItem(item)} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden flex items-center p-4 gap-4 active:scale-95 transition-transform duration-200 cursor-pointer">
               <div className="w-24 h-24 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-200 shrink-0 overflow-hidden relative">{item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <Utensils size={24} />}</div>
@@ -253,7 +269,7 @@ const RestaurantDetail: React.FC<Props> = ({ restaurantId, onBack, onPostClick }
            {posts.length === 0 ? (
              <div className="text-center py-10 opacity-20"><Utensils size={40} className="mx-auto mb-2" /><p className="text-xs font-bold">هنوز تجربه‌ای ثبت نشده است.</p></div>
            ) : (
-             <div className="space-y-4">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 {posts.map((post) => (
                   <div key={post.id} onClick={() => onPostClick?.(post.id)} className="bg-white dark:bg-dark-card p-5 rounded-[2rem] border border-gray-100 dark:border-dark-border shadow-sm space-y-3 cursor-pointer active:scale-[0.98] transition-all"><div className="flex justify-between items-start"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-dark-bg flex items-center justify-center overflow-hidden">{post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" /> : <User className="text-orange-500" size={20} />}</div><div><p className="text-[11px] font-black text-gray-900 dark:text-white">@{post.profiles?.username}</p><p className="text-[8px] font-bold text-gray-400">{new Date(post.created_at).toLocaleDateString('fa-IR')}</p></div></div><div className="bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-xl text-orange-600 flex items-center gap-1"><Star size={12} className="fill-current" /><span className="text-xs font-black">{post.rating.toFixed(1)}</span></div></div><p className="text-xs font-bold text-gray-700 dark:text-gray-300 leading-relaxed mb-1">{post.caption}</p>{(post as any).display_photo && (post as any).display_photo !== '' && (<div className="w-full aspect-video rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 mt-2"><img src={(post as any).display_photo} className="w-full h-full object-cover" /></div>)}</div>
                 ))}

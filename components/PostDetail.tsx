@@ -162,7 +162,7 @@ const PostDetail: React.FC<Props> = ({ postId, onBack, onEditPost }) => {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 bg-white dark:bg-dark-card border-t border-gray-100 dark:border-dark-border flex gap-2 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+      <div className="fixed bottom-0 left-0 right-0 w-full md:max-w-2xl lg:max-w-4xl xl:max-w-6xl mx-auto p-4 bg-white dark:bg-dark-card border-t border-gray-100 dark:border-dark-border flex gap-2 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
         <input value={commentText} onChange={(e) => setCommentText(e.target.value)} className="flex-1 px-4 py-3 bg-gray-50 dark:bg-dark-bg rounded-2xl text-xs font-bold outline-none border border-transparent focus:border-orange-200 dark:text-white" placeholder="نظرت رو اینجا بنویس..." />
         <button onClick={handleSendComment} disabled={submitting || !commentText.trim()} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-50">{submitting ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}</button>
       </div>

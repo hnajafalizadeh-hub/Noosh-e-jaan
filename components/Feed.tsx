@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 interface FeedProps {
-  onRestaurantClick?: (id: string) => void;
+  onRestaurantClick?: (id: string, menuItemId?: string) => void;
   onPostClick?: (id: string) => void;
   onUserClick?: (userId: string) => void;
   onEditPost?: (post: Post) => void;
@@ -80,8 +80,8 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
     setShowDropdown(true);
     try {
       const [restRes, menuRes] = await Promise.all([
-        supabase.from('restaurants').select('*').ilike('name', `%${query}%`).limit(5),
-        supabase.from('menu_items').select('*, restaurants(*)').ilike('name', `%${query}%`).limit(5)
+        supabase.from('restaurants').select('*').ilike('name', `%${query}%`).limit(20),
+        supabase.from('menu_items').select('*, restaurants(*)').ilike('name', `%${query}%`).limit(50)
       ]);
 
       setGlobalResults({
@@ -202,7 +202,7 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
     const photos = post.photo_urls || [];
 
     return (
-      <div className={`bg-white dark:bg-dark-card border-y border-gray-100 dark:border-dark-border shadow-sm relative transition-all duration-700 ${isNew ? 'border-r-4 border-r-orange-500' : ''}`} dir="rtl">
+      <div className={`bg-white dark:bg-dark-card border-y md:border md:rounded-[2.5rem] border-gray-100 dark:border-dark-border shadow-sm relative transition-all duration-700 overflow-hidden ${isNew ? 'border-r-4 md:border-r-1 border-r-orange-500' : ''}`} dir="rtl">
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-dark-bg flex items-center justify-center overflow-hidden border border-orange-50 dark:border-dark-border cursor-pointer" onClick={() => onUserClick?.(post.profiles?.id || '')}>
             {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="text-orange-600 font-black text-sm">{post.profiles?.username?.[0]?.toUpperCase() || 'U'}</span>}
@@ -309,7 +309,7 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
             {globalResults.restaurants.length === 0 && globalResults.menuItems.length === 0 && !isSearchingGlobal ? (
               <div className="p-8 text-center"><p className="text-xs font-bold text-gray-400">نتیجه‌ای یافت نشد.</p></div>
             ) : (
-              <div className="max-h-[400px] overflow-y-auto pb-4">
+              <div className="max-h-[60vh] overflow-y-auto pb-4 custom-scroll">
                 {globalResults.restaurants.length > 0 && (
                   <div className="p-2">
                     <div className="px-3 py-2 flex items-center gap-2 text-gray-400"><Store size={14} /><span className="text-[10px] font-black uppercase tracking-widest">رستوران‌ها</span></div>
@@ -325,7 +325,7 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
                   <div className="p-2 border-t border-gray-50 dark:border-dark-border">
                     <div className="px-3 py-2 flex items-center gap-2 text-gray-400"><UtensilsCrossed size={14} /><span className="text-[10px] font-black uppercase tracking-widest">غذاها</span></div>
                     {globalResults.menuItems.map(m => (
-                      <button key={m.id} onClick={() => { onRestaurantClick?.(m.restaurant_id); setShowDropdown(false); setSearchQuery(''); }} className="w-full p-3 flex items-center gap-3 hover:bg-orange-50 dark:hover:bg-dark-bg transition-colors text-right rounded-2xl group">
+                      <button key={m.id} onClick={() => { onRestaurantClick?.(m.restaurant_id, m.id); setShowDropdown(false); setSearchQuery(''); }} className="w-full p-3 flex items-center gap-3 hover:bg-orange-50 dark:hover:bg-dark-bg transition-colors text-right rounded-2xl group">
                         <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500 font-black shrink-0"><ChefHat size={20} /></div>
                         <div className="flex-1 min-w-0"><p className="text-xs font-black text-gray-900 dark:text-gray-100 group-hover:text-orange-600 transition-colors">{m.name}</p><p className="text-[10px] font-bold text-gray-400">در {m.restaurants?.name || 'رستوران'}</p></div>
                         <div className="text-left"><p className="text-[10px] font-black text-orange-600">{m.price.toLocaleString()} تومان</p></div>
@@ -339,11 +339,11 @@ const Feed: React.FC<FeedProps> = ({ onRestaurantClick, onPostClick, onUserClick
         )}
       </div>
 
-      <div className="space-y-0">
-        {refreshing && <div className="py-4 flex justify-center bg-white dark:bg-dark-card border-b border-gray-50 dark:border-dark-border"><Loader2 size={20} className="animate-spin text-orange-500" /></div>}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-0 md:gap-6 md:p-6">
+        {refreshing && <div className="col-span-full py-4 flex justify-center bg-white dark:bg-dark-card border-b border-gray-50 dark:border-dark-border rounded-2xl mb-4"><Loader2 size={20} className="animate-spin text-orange-500" /></div>}
         {allPosts.map(p => <PostCard key={p.id} post={p} />)}
-        {allPosts.length === 0 && !loading && <div className="text-center py-40 opacity-20"><Sparkle size={48} className="mx-auto mb-4" /><p className="text-sm font-black italic dark:text-gray-100">هنوز پستی در پاتوق ثبت نشده است.</p></div>}
-        {allPosts.length > 0 && <div className="py-20 text-center"><div className="inline-flex flex-col items-center gap-2 text-gray-300 dark:text-gray-600"><ArrowUpCircle size={32} /><p className="text-[10px] font-black uppercase tracking-widest">به انتهای پاتوق رسیدید!</p></div></div>}
+        {allPosts.length === 0 && !loading && <div className="col-span-full text-center py-40 opacity-20"><Sparkle size={48} className="mx-auto mb-4" /><p className="text-sm font-black italic dark:text-gray-100">هنوز پستی در پاتوق ثبت نشده است.</p></div>}
+        {allPosts.length > 0 && <div className="col-span-full py-20 text-center"><div className="inline-flex flex-col items-center gap-2 text-gray-300 dark:text-gray-600"><ArrowUpCircle size={32} /><p className="text-[10px] font-black uppercase tracking-widest">به انتهای پاتوق رسیدید!</p></div></div>}
       </div>
 
       {deletingPostId && (

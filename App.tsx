@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [view, setView] = useState<ViewState>('feed');
   const [selectedRestId, setSelectedRestId] = useState<string | null>(null);
+  const [selectedMenuItemId, setSelectedMenuItemId] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [postToEdit, setPostToEdit] = useState<Post | null>(null);
@@ -50,6 +51,7 @@ const App: React.FC = () => {
         isInternalNavRef.current = true;
         setView(event.state.view || 'feed');
         setSelectedRestId(event.state.selectedRestId || null);
+        setSelectedMenuItemId(event.state.selectedMenuItemId || null);
         setSelectedPostId(event.state.selectedPostId || null);
         setSelectedUserId(event.state.selectedUserId || null);
         setPostToEdit(event.state.postToEdit || null);
@@ -71,6 +73,7 @@ const App: React.FC = () => {
       safeHistoryUpdate('push', { 
         view, 
         selectedRestId, 
+        selectedMenuItemId,
         selectedPostId, 
         selectedUserId,
         postToEdit
@@ -217,7 +220,7 @@ const App: React.FC = () => {
   if (!session) return <Auth onAuthSuccess={() => setView('feed')} />;
 
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-gray-50 dark:bg-dark-bg border-x border-gray-200 dark:border-dark-border shadow-xl overflow-hidden relative transition-colors duration-300" dir="rtl">
+    <div className="flex flex-col h-screen w-full md:max-w-2xl lg:max-w-4xl xl:max-w-6xl mx-auto bg-gray-50 dark:bg-dark-bg border-x border-gray-200 dark:border-dark-border shadow-xl overflow-hidden relative transition-colors duration-300" dir="rtl">
       {dbError && (
         <div 
           onClick={() => setShowSqlGuide(true)}
@@ -269,8 +272,8 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto pb-24">
-        {view === 'feed' && <Feed onRestaurantClick={(id) => { setSelectedRestId(id); setView('restaurant_detail'); }} onPostClick={(id) => { setSelectedPostId(id); setView('post_detail'); }} onUserClick={(uid) => { setSelectedUserId(uid); setView('user_profile'); }} onEditPost={(post) => { setPostToEdit(post); setView('edit_post'); }} />}
-        {view === 'near_me' && <NearMe onRestaurantClick={(id) => { setSelectedRestId(id); setView('restaurant_detail'); }} />}
+        {view === 'feed' && <Feed onRestaurantClick={(id, mid) => { setSelectedRestId(id); setSelectedMenuItemId(mid || null); setView('restaurant_detail'); }} onPostClick={(id) => { setSelectedPostId(id); setView('post_detail'); }} onUserClick={(uid) => { setSelectedUserId(uid); setView('user_profile'); }} onEditPost={(post) => { setPostToEdit(post); setView('edit_post'); }} />}
+        {view === 'near_me' && <NearMe onRestaurantClick={(id) => { setSelectedRestId(id); setSelectedMenuItemId(null); setView('restaurant_detail'); }} />}
         {view === 'create' && <CreatePost onComplete={() => navigateBack()} />}
         {view === 'edit_post' && postToEdit && <CreatePost editPost={postToEdit} onComplete={() => { setPostToEdit(null); navigateBack(); }} />}
         {view === 'dashboard' && <RestaurantDashboard ownerRecord={ownerRecord} onRefreshOwnership={() => checkOwnership(session.user.id)} />}
@@ -289,11 +292,11 @@ const App: React.FC = () => {
         )}
         {view === 'user_profile' && selectedUserId && <ProfileView key={selectedUserId} userId={selectedUserId} onBack={navigateBack} onPostClick={(id) => { setSelectedPostId(id); setView('post_detail'); }} onUserClick={(uid) => { setSelectedUserId(uid); setView('user_profile'); }} onEditPost={(post) => { setPostToEdit(post); setView('edit_post'); }} />}
         {view === 'admin' && profile?.is_admin && <AdminPanel />}
-        {view === 'restaurant_detail' && selectedRestId && <RestaurantDetail restaurantId={selectedRestId} onBack={navigateBack} onPostClick={(id) => { setSelectedPostId(id); setView('post_detail'); }} />}
+        {view === 'restaurant_detail' && selectedRestId && <RestaurantDetail restaurantId={selectedRestId} highlightMenuItemId={selectedMenuItemId} onBack={navigateBack} onPostClick={(id) => { setSelectedPostId(id); setView('post_detail'); }} />}
         {view === 'post_detail' && selectedPostId && <PostDetail postId={selectedPostId} onBack={navigateBack} onEditPost={(post) => { setPostToEdit(post); setView('edit_post'); }} />}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-dark-card border-t border-gray-100 dark:border-dark-border px-2 py-2 flex justify-around items-center z-10 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] transition-colors">
+      <nav className="fixed bottom-0 left-0 right-0 w-full md:max-w-2xl lg:max-w-4xl xl:max-w-6xl mx-auto bg-white dark:bg-dark-card border-t border-gray-100 dark:border-dark-border px-2 py-2 flex justify-around items-center z-10 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] transition-colors">
         <button onClick={() => setView('feed')} className={`flex flex-col items-center gap-1 min-w-[64px] ${view === 'feed' ? 'text-orange-500' : 'text-gray-400'}`}>
           <Home size={24} />
           <span className="text-[10px] font-bold">خانه</span>
